@@ -16,6 +16,14 @@ define i64 @signed_f32_to_i64(float %value) {
   ret i64 %result
 }
 
+define i128 @signed_f32_to_i128(float %value) {
+; CHECK-LABEL: signed_f32_to_i128:
+; CHECK: call32 __fixsfti
+; CHECK: ret
+  %result = fptosi float %value to i128
+  ret i128 %result
+}
+
 define i32 @signed_f64_to_i32(double %value) {
 ; CHECK-LABEL: signed_f64_to_i32:
 ; CHECK: call32 __fixdfsi
@@ -30,6 +38,14 @@ define i64 @signed_f64_to_i64(double %value) {
 ; CHECK: ret
   %result = fptosi double %value to i64
   ret i64 %result
+}
+
+define i128 @signed_f64_to_i128(double %value) {
+; CHECK-LABEL: signed_f64_to_i128:
+; CHECK: call32 __fixdfti
+; CHECK: ret
+  %result = fptosi double %value to i128
+  ret i128 %result
 }
 
 define i32 @unsigned_f32_to_i32(float %value) {
@@ -48,6 +64,14 @@ define i64 @unsigned_f32_to_i64(float %value) {
   ret i64 %result
 }
 
+define i128 @unsigned_f32_to_i128(float %value) {
+; CHECK-LABEL: unsigned_f32_to_i128:
+; CHECK: call32 __fixunssfti
+; CHECK: ret
+  %result = fptoui float %value to i128
+  ret i128 %result
+}
+
 define i32 @unsigned_f64_to_i32(double %value) {
 ; CHECK-LABEL: unsigned_f64_to_i32:
 ; CHECK: call32 __fixunsdfsi
@@ -62,4 +86,12 @@ define i64 @unsigned_f64_to_i64(double %value) {
 ; CHECK: ret
   %result = fptoui double %value to i64
   ret i64 %result
+}
+
+define i128 @unsigned_f64_to_i128(double %value) {
+; CHECK-LABEL: unsigned_f64_to_i128:
+; CHECK: call32 __fixunsdfti
+; CHECK: ret
+  %result = fptoui double %value to i128
+  ret i128 %result
 }

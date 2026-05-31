@@ -157,7 +157,8 @@ TargetLowering::makeLibCall(SelectionDAG &DAG, RTLIB::LibcallImpl LibcallImpl,
                             MakeLibCallOptions CallOptions, const SDLoc &dl,
                             SDValue InChain) const {
   if (LibcallImpl == RTLIB::Unsupported)
-    reportFatalInternalError("unsupported library call operation");
+    report_fatal_error("unsupported library call operation in " +
+                       DAG.getMachineFunction().getName());
 
   if (!InChain)
     InChain = DAG.getEntryNode();

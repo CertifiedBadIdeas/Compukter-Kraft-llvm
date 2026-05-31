@@ -29,6 +29,7 @@ protected:
   unsigned getRelocType(const MCFixup &Fixup, const MCValue &,
                         bool IsPCRel) const override {
     switch (Fixup.getKind()) {
+    case FK_Data_4:
     case K16::fixup_k16_abs32:
       return ELF::R_K16_ABS32;
     case K16::fixup_k16_call32:
