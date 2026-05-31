@@ -1,0 +1,8 @@
+#ifndef ELF_RELOC
+#error "ELF_RELOC must be defined"
+#endif
+
+ELF_RELOC(R_K16_NONE,    0)
+ELF_RELOC(R_K16_ABS32,   1)
+ELF_RELOC(R_K16_CALL32,  2)
+ELF_RELOC(R_K16_BRANCH4, 3)

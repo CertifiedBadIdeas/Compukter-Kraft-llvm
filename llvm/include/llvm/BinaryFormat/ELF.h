@@ -325,6 +325,7 @@ enum {
   EM_VE = 251,            // NEC SX-Aurora VE
   EM_CSKY = 252,          // C-SKY 32-bit processor
   EM_LOONGARCH = 258,     // LoongArch
+  EM_K16 = 0x5258,      // Experimental K16 architecture
 };
 
 // Object file classes.
@@ -1093,6 +1094,11 @@ enum : unsigned {
 // ELF Relocation types for Xtensa
 enum {
 #include "ELFRelocs/Xtensa.def"
+};
+
+// ELF Relocation types for K16
+enum {
+#include "ELFRelocs/K16.def"
 };
 
 #undef ELF_RELOC
