@@ -23,6 +23,17 @@ static const MCPhysReg K16RetRegs[] = {K16::R0, K16::R1, K16::R2, K16::R3};
 static constexpr unsigned K16StackSlotBytes = 4;
 static constexpr unsigned K16ReturnPcBytes = 4;
 
+static bool isSupportedK16CallingConv(CallingConv::ID CallConv) {
+  switch (CallConv) {
+  case CallingConv::C:
+  case CallingConv::Fast:
+  case CallingConv::Cold:
+    return true;
+  default:
+    return false;
+  }
+}
+
 static bool isK16HaltOnceCallee(SDValue Callee) {
   if (auto *E = dyn_cast<ExternalSymbolSDNode>(Callee))
     return std::strcmp(E->getSymbol(), "__k16_halt_once") == 0;
@@ -58,6 +69,7 @@ K16TargetLowering::K16TargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::SHL_PARTS, MVT::i32, Expand);
   setOperationAction(ISD::SRL_PARTS, MVT::i32, Expand);
   setOperationAction(ISD::SRA_PARTS, MVT::i32, Expand);
+  setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i1, Expand);
   setOperationAction(ISD::FSHL, MVT::i32, Expand);
   setOperationAction(ISD::FSHR, MVT::i32, Expand);
   setOperationAction(ISD::ROTL, MVT::i32, Expand);
@@ -71,9 +83,11 @@ K16TargetLowering::K16TargetLowering(const TargetMachine &TM,
 }
 
 SDValue K16TargetLowering::LowerFormalArguments(
-    SDValue Chain, CallingConv::ID, bool IsVarArg,
+    SDValue Chain, CallingConv::ID CallConv, bool IsVarArg,
     const SmallVectorImpl<ISD::InputArg> &Ins, const SDLoc &DL,
     SelectionDAG &DAG, SmallVectorImpl<SDValue> &InVals) const {
+  if (!isSupportedK16CallingConv(CallConv))
+    report_fatal_error("K16 unsupported function calling convention");
   if (IsVarArg)
     report_fatal_error("K16 varargs are not implemented");
 
@@ -106,10 +120,12 @@ SDValue K16TargetLowering::LowerFormalArguments(
 }
 
 SDValue K16TargetLowering::LowerReturn(
-    SDValue Chain, CallingConv::ID, bool,
+    SDValue Chain, CallingConv::ID CallConv, bool,
     const SmallVectorImpl<ISD::OutputArg> &Outs,
     const SmallVectorImpl<SDValue> &OutVals, const SDLoc &DL,
     SelectionDAG &DAG) const {
+  if (!isSupportedK16CallingConv(CallConv))
+    report_fatal_error("K16 unsupported return calling convention");
   if (Outs.size() > std::size(K16RetRegs))
     report_fatal_error("K16 supports at most four i32 return values");
 
@@ -143,8 +159,8 @@ SDValue K16TargetLowering::LowerCall(
 
   CLI.IsTailCall = false;
 
-  if (CLI.CallConv != CallingConv::C)
-    report_fatal_error("K16 only supports the C calling convention");
+  if (!isSupportedK16CallingConv(CLI.CallConv))
+    report_fatal_error("K16 unsupported call calling convention");
   if (CLI.IsVarArg)
     report_fatal_error("K16 varargs calls are not implemented");
   if (CLI.Ins.size() > std::size(K16RetRegs))
