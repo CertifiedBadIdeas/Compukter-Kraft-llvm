@@ -23,6 +23,14 @@ static const MCPhysReg K16RetRegs[] = {K16::R0, K16::R1, K16::R2, K16::R3};
 static constexpr unsigned K16StackSlotBytes = 4;
 static constexpr unsigned K16ReturnPcBytes = 4;
 
+static bool isK16HaltOnceCallee(SDValue Callee) {
+  if (auto *E = dyn_cast<ExternalSymbolSDNode>(Callee))
+    return std::strcmp(E->getSymbol(), "__k16_halt_once") == 0;
+  if (auto *G = dyn_cast<GlobalAddressSDNode>(Callee))
+    return G->getGlobal()->getName() == "__k16_halt_once";
+  return false;
+}
+
 K16TargetLowering::K16TargetLowering(const TargetMachine &TM,
                                          const K16Subtarget &STI)
     : TargetLowering(TM, STI) {
@@ -141,12 +149,8 @@ SDValue K16TargetLowering::LowerCall(
     report_fatal_error("K16 varargs calls are not implemented");
   if (CLI.Ins.size() > std::size(K16RetRegs))
     report_fatal_error("K16 calls support at most four i32 return values");
-  if (CLI.Outs.empty() && CLI.Ins.empty()) {
-    if (auto *E = dyn_cast<ExternalSymbolSDNode>(Callee)) {
-      if (std::strcmp(E->getSymbol(), "__k16_halt_once") == 0)
-        return DAG.getNode(K16ISD::HALT, DL, MVT::Other, Chain);
-    }
-  }
+  if (CLI.Outs.empty() && CLI.Ins.empty() && isK16HaltOnceCallee(Callee))
+    return DAG.getNode(K16ISD::HALT, DL, MVT::Other, Chain);
 
   unsigned StackArgCount =
       CLI.Outs.size() > std::size(K16ArgRegs)
