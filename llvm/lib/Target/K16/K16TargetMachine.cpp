@@ -13,6 +13,7 @@
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/GlobalObject.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/TargetRegistry.h"
@@ -47,6 +48,15 @@ public:
 protected:
   MCSection *SelectSectionForGlobal(const GlobalObject *GO, SectionKind Kind,
                                     const TargetMachine &TM) const override {
+    if (Kind.isText() && !GO->hasSection() && TM.getFunctionSections()) {
+      SmallString<128> SectionName(".text.k16.");
+      SmallString<128> MangledName;
+      getMangler().getNameWithPrefix(MangledName, GO,
+                                      /*CannotUsePrivateLabel=*/true);
+      SectionName += MangledName;
+      return getContext().getELFSection(
+          SectionName, ELF::SHT_PROGBITS, ELF::SHF_EXECINSTR | ELF::SHF_ALLOC);
+    }
     if (Kind.isText() && !GO->hasSection())
       return TextSection;
     return TargetLoweringObjectFileELF::SelectSectionForGlobal(GO, Kind, TM);
