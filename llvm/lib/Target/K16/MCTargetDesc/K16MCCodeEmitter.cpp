@@ -77,6 +77,9 @@ void K16MCCodeEmitter::encodeInstruction(
     const MCInst &MI, SmallVectorImpl<char> &CB,
     SmallVectorImpl<MCFixup> &Fixups, const MCSubtargetInfo &STI) const {
   switch (MI.getOpcode()) {
+  case K16::HALT:
+    emitWord(CB, 0x0001);
+    return;
   case K16::RET:
     emitWord(CB, 0x9000);
     return;

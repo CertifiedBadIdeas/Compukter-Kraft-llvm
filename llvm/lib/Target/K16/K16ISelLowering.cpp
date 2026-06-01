@@ -14,6 +14,7 @@
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include <climits>
+#include <cstring>
 
 using namespace llvm;
 
@@ -140,6 +141,12 @@ SDValue K16TargetLowering::LowerCall(
     report_fatal_error("K16 varargs calls are not implemented");
   if (CLI.Ins.size() > std::size(K16RetRegs))
     report_fatal_error("K16 calls support at most four i32 return values");
+  if (CLI.Outs.empty() && CLI.Ins.empty()) {
+    if (auto *E = dyn_cast<ExternalSymbolSDNode>(Callee)) {
+      if (std::strcmp(E->getSymbol(), "__k16_halt_once") == 0)
+        return DAG.getNode(K16ISD::HALT, DL, MVT::Other, Chain);
+    }
+  }
 
   unsigned StackArgCount =
       CLI.Outs.size() > std::size(K16ArgRegs)
@@ -225,6 +232,8 @@ const char *K16TargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "K16ISD::RET_FLAG";
   case K16ISD::CALL:
     return "K16ISD::CALL";
+  case K16ISD::HALT:
+    return "K16ISD::HALT";
   default:
     return nullptr;
   }

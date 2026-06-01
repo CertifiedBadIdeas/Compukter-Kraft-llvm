@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 def SDT_K16RetFlag : SDTypeProfile<0, 0, []>;
+def SDT_K16Halt : SDTypeProfile<0, 0, []>;
 def SDT_K16Call : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
 def SDT_CallSeqStart : SDCallSeqStart<[SDTCisVT<0, i32>,
                                        SDTCisVT<1, i32>]>;
@@ -17,6 +18,7 @@ def callseq_end : SDNode<"ISD::CALLSEQ_END", SDT_CallSeqEnd,
                          [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue]>;
 def K16retflag : SDNode<"K16ISD::RET_FLAG", SDT_K16RetFlag,
                           [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
+def K16halt : SDNode<"K16ISD::HALT", SDT_K16Halt, [SDNPHasChain]>;
 def K16call : SDNode<"K16ISD::CALL", SDT_K16Call,
                        [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue,
                         SDNPVariadic]>;
@@ -41,6 +43,9 @@ class K16Pseudo<dag outs, dag ins, string asmstr, list<dag> pattern = []>
   let isPseudo = 1;
   let isCodeGenOnly = 1;
 }
+
+let hasSideEffects = 1 in
+def HALT : K16Inst<(outs), (ins), "halt", [(K16halt)]>;
 
 let isReMaterializable = 1, isAsCheapAsAMove = 1, isMoveImm = 1 in
 def CONST32 : K16Inst<(outs GPR:$dst), (ins i32imm:$imm),

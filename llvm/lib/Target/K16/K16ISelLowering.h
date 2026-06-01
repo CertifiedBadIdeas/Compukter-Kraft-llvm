@@ -20,6 +20,7 @@ enum NodeType : unsigned {
   FIRST_NUMBER = ISD::BUILTIN_OP_END,
   RET_FLAG,
   CALL,
+  HALT,
 };
 } // namespace K16ISD
 
