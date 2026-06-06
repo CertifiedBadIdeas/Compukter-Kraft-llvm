@@ -21,6 +21,9 @@ enum NodeType : unsigned {
   RET_FLAG,
   CALL,
   HALT,
+  IRET,
+  READ_CSR,
+  WRITE_CSR,
 };
 } // namespace K16ISD
 

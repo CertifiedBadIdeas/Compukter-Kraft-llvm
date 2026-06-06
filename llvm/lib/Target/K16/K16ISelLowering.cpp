@@ -13,6 +13,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/ADT/StringRef.h"
 #include <climits>
 #include <cstring>
 
@@ -34,11 +35,57 @@ static bool isSupportedK16CallingConv(CallingConv::ID CallConv) {
   }
 }
 
-static bool isK16HaltOnceCallee(SDValue Callee) {
+static StringRef getK16SpecialCalleeName(SDValue Callee) {
   if (auto *E = dyn_cast<ExternalSymbolSDNode>(Callee))
-    return std::strcmp(E->getSymbol(), "__k16_halt_once") == 0;
+    return E->getSymbol();
   if (auto *G = dyn_cast<GlobalAddressSDNode>(Callee))
-    return G->getGlobal()->getName() == "__k16_halt_once";
+    return G->getGlobal()->getName();
+  return StringRef();
+}
+
+static bool isK16HaltOnceCallee(SDValue Callee) {
+  return getK16SpecialCalleeName(Callee) == "__k16_halt_once";
+}
+
+static bool isK16IretOnceCallee(SDValue Callee) {
+  return getK16SpecialCalleeName(Callee) == "__k16_iret_once";
+}
+
+static bool getK16ReadCsrCallee(SDValue Callee, unsigned &Csr) {
+  StringRef Name = getK16SpecialCalleeName(Callee);
+  if (Name == "__k16_read_trap_cause") {
+    Csr = 2;
+    return true;
+  }
+  if (Name == "__k16_read_trap_pc") {
+    Csr = 3;
+    return true;
+  }
+  if (Name == "__k16_read_trap_value") {
+    Csr = 4;
+    return true;
+  }
+  if (Name == "__k16_read_interrupt_pending") {
+    Csr = 7;
+    return true;
+  }
+  return false;
+}
+
+static bool getK16WriteCsrCallee(SDValue Callee, unsigned &Csr) {
+  StringRef Name = getK16SpecialCalleeName(Callee);
+  if (Name == "__k16_write_trap_vector") {
+    Csr = 1;
+    return true;
+  }
+  if (Name == "__k16_write_interrupt_enable") {
+    Csr = 5;
+    return true;
+  }
+  if (Name == "__k16_write_interrupt_mask") {
+    Csr = 6;
+    return true;
+  }
   return false;
 }
 
@@ -167,6 +214,25 @@ SDValue K16TargetLowering::LowerCall(
     report_fatal_error("K16 calls support at most four i32 return values");
   if (CLI.Outs.empty() && CLI.Ins.empty() && isK16HaltOnceCallee(Callee))
     return DAG.getNode(K16ISD::HALT, DL, MVT::Other, Chain);
+  if (CLI.Outs.empty() && CLI.Ins.empty() && isK16IretOnceCallee(Callee))
+    return DAG.getNode(K16ISD::IRET, DL, MVT::Other, Chain);
+
+  unsigned Csr = 0;
+  if (CLI.Outs.empty() && CLI.Ins.size() == 1 &&
+      CLI.Ins[0].VT == MVT::i32 && getK16ReadCsrCallee(Callee, Csr)) {
+    SDValue CsrValue = DAG.getTargetConstant(Csr, DL, MVT::i32);
+    SDValue Read = DAG.getNode(K16ISD::READ_CSR, DL,
+                               DAG.getVTList(MVT::i32, MVT::Other), Chain,
+                               CsrValue);
+    InVals.push_back(Read);
+    return Read.getValue(1);
+  }
+  if (CLI.Outs.size() == 1 && CLI.Outs[0].VT == MVT::i32 &&
+      CLI.Ins.empty() && getK16WriteCsrCallee(Callee, Csr)) {
+    SDValue CsrValue = DAG.getTargetConstant(Csr, DL, MVT::i32);
+    return DAG.getNode(K16ISD::WRITE_CSR, DL, MVT::Other, Chain, CsrValue,
+                       CLI.OutVals[0]);
+  }
 
   unsigned StackArgCount =
       CLI.Outs.size() > std::size(K16ArgRegs)
@@ -254,6 +320,12 @@ const char *K16TargetLowering::getTargetNodeName(unsigned Opcode) const {
     return "K16ISD::CALL";
   case K16ISD::HALT:
     return "K16ISD::HALT";
+  case K16ISD::IRET:
+    return "K16ISD::IRET";
+  case K16ISD::READ_CSR:
+    return "K16ISD::READ_CSR";
+  case K16ISD::WRITE_CSR:
+    return "K16ISD::WRITE_CSR";
   default:
     return nullptr;
   }

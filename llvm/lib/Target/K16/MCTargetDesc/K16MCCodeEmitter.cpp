@@ -80,6 +80,25 @@ void K16MCCodeEmitter::encodeInstruction(
   case K16::HALT:
     emitWord(CB, 0x0001);
     return;
+  case K16::IRET:
+    emitWord(CB, 0x0004);
+    return;
+  case K16::READ_CSR: {
+    uint16_t Dst = getRegEncoding(MI.getOperand(0));
+    uint16_t Csr = MI.getOperand(1).getImm();
+    if (Csr > 0xf)
+      report_fatal_error("K16 read_csr expected a 4-bit CSR number");
+    emitWord(CB, 0x0002 | (Dst << 8) | (Csr << 4));
+    return;
+  }
+  case K16::WRITE_CSR: {
+    uint16_t Csr = MI.getOperand(0).getImm();
+    uint16_t Src = getRegEncoding(MI.getOperand(1));
+    if (Csr > 0xf)
+      report_fatal_error("K16 write_csr expected a 4-bit CSR number");
+    emitWord(CB, 0x0003 | (Csr << 8) | (Src << 4));
+    return;
+  }
   case K16::RET:
     emitWord(CB, 0x9000);
     return;

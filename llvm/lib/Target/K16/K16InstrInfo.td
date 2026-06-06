@@ -8,6 +8,9 @@
 
 def SDT_K16RetFlag : SDTypeProfile<0, 0, []>;
 def SDT_K16Halt : SDTypeProfile<0, 0, []>;
+def SDT_K16Iret : SDTypeProfile<0, 0, []>;
+def SDT_K16ReadCsr : SDTypeProfile<1, 1, [SDTCisInt<0>, SDTCisInt<1>]>;
+def SDT_K16WriteCsr : SDTypeProfile<0, 2, [SDTCisInt<0>, SDTCisInt<1>]>;
 def SDT_K16Call : SDTypeProfile<0, -1, [SDTCisVT<0, iPTR>]>;
 def SDT_CallSeqStart : SDCallSeqStart<[SDTCisVT<0, i32>,
                                        SDTCisVT<1, i32>]>;
@@ -19,6 +22,12 @@ def callseq_end : SDNode<"ISD::CALLSEQ_END", SDT_CallSeqEnd,
 def K16retflag : SDNode<"K16ISD::RET_FLAG", SDT_K16RetFlag,
                           [SDNPHasChain, SDNPOptInGlue, SDNPVariadic]>;
 def K16halt : SDNode<"K16ISD::HALT", SDT_K16Halt, [SDNPHasChain]>;
+def K16iret : SDNode<"K16ISD::IRET", SDT_K16Iret,
+                       [SDNPHasChain, SDNPSideEffect]>;
+def K16readcsr : SDNode<"K16ISD::READ_CSR", SDT_K16ReadCsr,
+                          [SDNPHasChain, SDNPSideEffect]>;
+def K16writecsr : SDNode<"K16ISD::WRITE_CSR", SDT_K16WriteCsr,
+                           [SDNPHasChain, SDNPSideEffect]>;
 def K16call : SDNode<"K16ISD::CALL", SDT_K16Call,
                        [SDNPHasChain, SDNPOptInGlue, SDNPOutGlue,
                         SDNPVariadic]>;
@@ -46,6 +55,19 @@ class K16Pseudo<dag outs, dag ins, string asmstr, list<dag> pattern = []>
 
 let hasSideEffects = 1 in
 def HALT : K16Inst<(outs), (ins), "halt", [(K16halt)]>;
+
+let hasSideEffects = 1, isTerminator = 1, isBarrier = 1 in
+def IRET : K16Inst<(outs), (ins), "iret", [(K16iret)]>;
+
+let hasSideEffects = 1 in
+def READ_CSR : K16Inst<(outs GPR:$dst), (ins i32imm:$csr),
+                         "read_csr $dst, $csr",
+                         [(set GPR:$dst, (K16readcsr timm:$csr))]>;
+
+let hasSideEffects = 1 in
+def WRITE_CSR : K16Inst<(outs), (ins i32imm:$csr, GPR:$src),
+                          "write_csr $csr, $src",
+                          [(K16writecsr timm:$csr, GPR:$src)]>;
 
 let isReMaterializable = 1, isAsCheapAsAMove = 1, isMoveImm = 1 in
 def CONST32 : K16Inst<(outs GPR:$dst), (ins i32imm:$imm),
