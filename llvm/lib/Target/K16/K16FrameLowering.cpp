@@ -24,7 +24,7 @@ bool K16FrameLowering::hasFPImpl(const MachineFunction &) const {
 }
 
 bool K16FrameLowering::hasReservedCallFrame(const MachineFunction &) const {
-  return false;
+  return true;
 }
 
 MachineBasicBlock::iterator K16FrameLowering::eliminateCallFramePseudoInstr(
@@ -33,7 +33,7 @@ MachineBasicBlock::iterator K16FrameLowering::eliminateCallFramePseudoInstr(
   MachineInstr &Old = *I;
   const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
   uint64_t Amount = TII->getFrameSize(Old);
-  if (Amount != 0) {
+  if (Amount != 0 && !hasReservedCallFrame(MF)) {
     DebugLoc DL = Old.getDebugLoc();
     unsigned Opcode = Old.getOpcode();
     BuildMI(MBB, I, DL, TII->get(K16::CONST32), K16::R13).addImm(Amount);
