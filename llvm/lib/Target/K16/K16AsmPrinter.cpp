@@ -26,6 +26,17 @@ using namespace llvm;
 
 namespace {
 
+const MCExpr *withOffset(const MCExpr *Expr, int64_t Offset,
+                         MCContext &Context) {
+  if (Offset == 0)
+    return Expr;
+
+  const MCExpr *OffsetExpr =
+      MCConstantExpr::create(Offset < 0 ? -Offset : Offset, Context);
+  return Offset < 0 ? MCBinaryExpr::createSub(Expr, OffsetExpr, Context)
+                    : MCBinaryExpr::createAdd(Expr, OffsetExpr, Context);
+}
+
 class K16AsmPrinter : public AsmPrinter {
 public:
   explicit K16AsmPrinter(TargetMachine &TM,
@@ -80,22 +91,25 @@ void K16AsmPrinter::emitInstruction(const MachineInstr *MI) {
 
     if (MO.isGlobal()) {
       MCSymbol *Symbol = getSymbol(MO.getGlobal());
-      Inst.addOperand(
-          MCOperand::createExpr(MCSymbolRefExpr::create(Symbol, OutContext)));
+      const MCExpr *Expr = MCSymbolRefExpr::create(Symbol, OutContext);
+      Inst.addOperand(MCOperand::createExpr(
+          withOffset(Expr, MO.getOffset(), OutContext)));
       continue;
     }
 
     if (MO.isSymbol()) {
       MCSymbol *Symbol = OutContext.getOrCreateSymbol(MO.getSymbolName());
-      Inst.addOperand(
-          MCOperand::createExpr(MCSymbolRefExpr::create(Symbol, OutContext)));
+      const MCExpr *Expr = MCSymbolRefExpr::create(Symbol, OutContext);
+      Inst.addOperand(MCOperand::createExpr(
+          withOffset(Expr, MO.getOffset(), OutContext)));
       continue;
     }
 
     if (MO.isCPI()) {
       MCSymbol *Symbol = GetCPISymbol(MO.getIndex());
-      Inst.addOperand(
-          MCOperand::createExpr(MCSymbolRefExpr::create(Symbol, OutContext)));
+      const MCExpr *Expr = MCSymbolRefExpr::create(Symbol, OutContext);
+      Inst.addOperand(MCOperand::createExpr(
+          withOffset(Expr, MO.getOffset(), OutContext)));
       continue;
     }
 
