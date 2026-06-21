@@ -18,6 +18,26 @@ using namespace llvm;
 
 namespace {
 
+static unsigned getK16LoadOpcode(EVT MemoryVT) {
+  if (MemoryVT == MVT::i8)
+    return K16::LOAD8;
+  if (MemoryVT == MVT::i16)
+    return K16::LOAD16;
+  if (MemoryVT == MVT::i32)
+    return K16::LOAD32;
+  return 0;
+}
+
+static unsigned getK16StoreOpcode(EVT MemoryVT) {
+  if (MemoryVT == MVT::i8)
+    return K16::STORE8;
+  if (MemoryVT == MVT::i16)
+    return K16::STORE16;
+  if (MemoryVT == MVT::i32)
+    return K16::STORE32;
+  return 0;
+}
+
 class K16DAGToDAGISel : public SelectionDAGISel {
 public:
   K16DAGToDAGISel(K16TargetMachine &TM, CodeGenOptLevel OptLevel)
@@ -91,11 +111,7 @@ void K16DAGToDAGISel::Select(SDNode *Node) {
   }
   case ISD::LOAD: {
     auto *Load = cast<LoadSDNode>(Node);
-    unsigned Opcode = 0;
-    if (Load->getMemoryVT() == MVT::i16)
-      Opcode = K16::LOAD16;
-    if (Load->getMemoryVT() == MVT::i32)
-      Opcode = K16::LOAD32;
+    unsigned Opcode = getK16LoadOpcode(Load->getMemoryVT());
     if (Opcode != 0) {
       if (auto *FI = dyn_cast<FrameIndexSDNode>(Load->getBasePtr())) {
         SDValue TargetFI = CurDAG->getTargetFrameIndex(FI->getIndex(), MVT::i32);
@@ -107,13 +123,20 @@ void K16DAGToDAGISel::Select(SDNode *Node) {
     }
     break;
   }
+  case ISD::ATOMIC_LOAD: {
+    auto *Load = cast<AtomicSDNode>(Node);
+    unsigned Opcode = getK16LoadOpcode(Load->getMemoryVT());
+    if (Opcode != 0) {
+      SDValue Ops[] = {Load->getBasePtr(), Load->getChain()};
+      CurDAG->SelectNodeTo(Node, Opcode,
+                           CurDAG->getVTList(MVT::i32, MVT::Other), Ops);
+      return;
+    }
+    break;
+  }
   case ISD::STORE: {
     auto *Store = cast<StoreSDNode>(Node);
-    unsigned Opcode = 0;
-    if (Store->getMemoryVT() == MVT::i16)
-      Opcode = K16::STORE16;
-    if (Store->getMemoryVT() == MVT::i32)
-      Opcode = K16::STORE32;
+    unsigned Opcode = getK16StoreOpcode(Store->getMemoryVT());
     if (Opcode != 0) {
       if (auto *FI = dyn_cast<FrameIndexSDNode>(Store->getBasePtr())) {
         SDValue TargetFI = CurDAG->getTargetFrameIndex(FI->getIndex(), MVT::i32);
@@ -121,6 +144,17 @@ void K16DAGToDAGISel::Select(SDNode *Node) {
         CurDAG->SelectNodeTo(Node, Opcode, MVT::Other, Ops);
         return;
       }
+    }
+    break;
+  }
+  case ISD::ATOMIC_STORE: {
+    auto *Store = cast<AtomicSDNode>(Node);
+    unsigned Opcode = getK16StoreOpcode(Store->getMemoryVT());
+    if (Opcode != 0) {
+      SDValue Ops[] = {Store->getBasePtr(), Store->getVal(),
+                       Store->getChain()};
+      CurDAG->SelectNodeTo(Node, Opcode, MVT::Other, Ops);
+      return;
     }
     break;
   }
