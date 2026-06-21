@@ -4,7 +4,7 @@
 
 define i32 @stack_slot(i32 %value) {
 ; ASM-LABEL: stack_slot:
-; ASM: const32 r13, 4
+; ASM: const32 r13, 8
 ; ASM: sub r15, r15, r13
 ; ASM: store32 [r13], r1
 ; ASM: load32 r0, [r13]

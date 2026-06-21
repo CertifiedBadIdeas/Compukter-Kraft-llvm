@@ -16,8 +16,8 @@
 using namespace llvm;
 
 K16FrameLowering::K16FrameLowering()
-    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, Align(4), 0,
-                          Align(4)) {}
+    : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, Align(8), 0,
+                          Align(8)) {}
 
 bool K16FrameLowering::hasFPImpl(const MachineFunction &) const {
   return false;
@@ -54,6 +54,8 @@ MachineBasicBlock::iterator K16FrameLowering::eliminateCallFramePseudoInstr(
 void K16FrameLowering::emitPrologue(MachineFunction &MF,
                                       MachineBasicBlock &MBB) const {
   uint64_t StackSize = MF.getFrameInfo().getStackSize();
+  if (MF.getFrameInfo().hasCalls())
+    StackSize += 4;
   if (StackSize == 0)
     return;
 
@@ -70,6 +72,8 @@ void K16FrameLowering::emitPrologue(MachineFunction &MF,
 void K16FrameLowering::emitEpilogue(MachineFunction &MF,
                                       MachineBasicBlock &MBB) const {
   uint64_t StackSize = MF.getFrameInfo().getStackSize();
+  if (MF.getFrameInfo().hasCalls())
+    StackSize += 4;
   if (StackSize == 0)
     return;
 

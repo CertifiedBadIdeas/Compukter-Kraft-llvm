@@ -62,6 +62,8 @@ bool K16RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II, int,
 
   int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
   int64_t Offset = MFI.getObjectOffset(FrameIndex) + MFI.getStackSize();
+  if (MFI.hasCalls())
+    Offset += 4;
   DebugLoc DL = MI.getDebugLoc();
 
   if (MI.getOpcode() == K16::FRAMEADDR) {

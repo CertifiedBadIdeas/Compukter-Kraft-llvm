@@ -3,10 +3,11 @@
 
 define ptr @stack_slot_address() {
 ; CHECK-LABEL: stack_slot_address:
-; CHECK: const32 r13, 4
+; CHECK: const32 r13, 8
 ; CHECK: sub r15, r15, r13
-; CHECK: const32 r13, 0
+; CHECK: const32 r13, 4
 ; CHECK: add r0, r15, r13
+; CHECK: const32 r13, 8
 ; CHECK: add r15, r15, r13
 ; CHECK: ret
 entry:

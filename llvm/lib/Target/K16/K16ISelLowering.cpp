@@ -239,7 +239,8 @@ SDValue K16TargetLowering::LowerCall(
           ? CLI.Outs.size() - std::size(K16ArgRegs)
           : 0;
   unsigned StackArgBytes = StackArgCount * K16StackSlotBytes;
-  Chain = DAG.getCALLSEQ_START(Chain, StackArgBytes, 0, DL);
+  unsigned CallFrameBytes = StackArgBytes;
+  Chain = DAG.getCALLSEQ_START(Chain, CallFrameBytes, 0, DL);
 
   SmallVector<std::pair<MCRegister, SDValue>, 3> RegsToPass;
   SmallVector<SDValue, 8> MemOpChains;
@@ -296,7 +297,7 @@ SDValue K16TargetLowering::LowerCall(
   Chain = DAG.getNode(K16ISD::CALL, DL, NodeTys, Ops);
   InGlue = Chain.getValue(1);
 
-  Chain = DAG.getCALLSEQ_END(Chain, StackArgBytes, 0, InGlue, DL);
+  Chain = DAG.getCALLSEQ_END(Chain, CallFrameBytes, 0, InGlue, DL);
   InGlue = Chain.getValue(1);
 
   for (unsigned I = 0, E = CLI.Ins.size(); I != E; ++I) {
