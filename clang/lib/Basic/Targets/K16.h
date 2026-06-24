@@ -35,7 +35,7 @@ public:
     IntPtrType = SignedInt;
     PtrDiffType = SignedInt;
     SigAtomicType = SignedInt;
-    resetDataLayout("e-p:32:32-i32:32-n32");
+    resetDataLayout("e-p:32:32-i32:32-i64:64-n32-S64");
   }
 
   void getTargetDefines(const LangOptions &Opts,
