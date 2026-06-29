@@ -35,6 +35,7 @@ def K16call : SDNode<"K16ISD::CALL", SDT_K16Call,
 def frameaddr : Operand<iPTR>;
 def calltarget : Operand<iPTR>;
 def brtarget : Operand<OtherVT>;
+def simm16 : PatLeaf<(imm), [{ return isInt<16>(N->getSExtValue()); }]>;
 
 class K16Inst<dag outs, dag ins, string asmstr, list<dag> pattern = [],
                 int size = 2>
@@ -81,6 +82,10 @@ def ADD : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
 def SUB : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
                     "sub $dst, $lhs, $rhs",
                     [(set GPR:$dst, (sub GPR:$lhs, GPR:$rhs))], 4>;
+
+def ADDI : K16Inst<(outs GPR:$dst), (ins GPR:$src, i32imm:$imm),
+                     "addi $dst, $src, $imm",
+                     [(set GPR:$dst, (add GPR:$src, simm16:$imm))], 4>;
 
 def MUL : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
                     "mul $dst, $lhs, $rhs",
@@ -142,6 +147,11 @@ def LOAD8 : K16Inst<(outs GPR:$dst), (ins GPR:$addr),
                       "load8 $dst, [$addr]",
                       [(set GPR:$dst, (zextloadi8 GPR:$addr))]>;
 
+let mayLoad = 1 in
+def LOAD8O : K16Inst<(outs GPR:$dst), (ins GPR:$base, i32imm:$offset),
+                       "load8 $dst, [$base + $offset]",
+                       [], 4>;
+
 def : Pat<(extloadi8 GPR:$addr), (LOAD8 GPR:$addr)>;
 def : Pat<(sextloadi8 GPR:$addr),
           (SAR (SHL (LOAD8 GPR:$addr), (CONST32 24)), (CONST32 24))>;
@@ -150,6 +160,11 @@ let mayLoad = 1 in
 def LOAD16 : K16Inst<(outs GPR:$dst), (ins GPR:$addr),
                        "load16 $dst, [$addr]",
                        [(set GPR:$dst, (zextloadi16 GPR:$addr))]>;
+
+let mayLoad = 1 in
+def LOAD16O : K16Inst<(outs GPR:$dst), (ins GPR:$base, i32imm:$offset),
+                        "load16 $dst, [$base + $offset]",
+                        [], 4>;
 
 def : Pat<(extloadi16 GPR:$addr), (LOAD16 GPR:$addr)>;
 def : Pat<(sextloadi16 GPR:$addr),
@@ -160,10 +175,20 @@ def LOAD32 : K16Inst<(outs GPR:$dst), (ins GPR:$addr),
                        "load32 $dst, [$addr]",
                        [(set GPR:$dst, (load GPR:$addr))]>;
 
+let mayLoad = 1 in
+def LOAD32O : K16Inst<(outs GPR:$dst), (ins GPR:$base, i32imm:$offset),
+                        "load32 $dst, [$base + $offset]",
+                        [], 4>;
+
 let mayStore = 1 in
 def STORE8 : K16Inst<(outs), (ins GPR:$addr, GPR:$src),
                        "store8 [$addr], $src",
                        [(truncstorei8 GPR:$src, GPR:$addr)]>;
+
+let mayStore = 1 in
+def STORE8O : K16Inst<(outs), (ins GPR:$base, GPR:$src, i32imm:$offset),
+                        "store8 [$base + $offset], $src",
+                        [], 4>;
 
 let mayStore = 1 in
 def STORE16 : K16Inst<(outs), (ins GPR:$addr, GPR:$src),
@@ -171,9 +196,19 @@ def STORE16 : K16Inst<(outs), (ins GPR:$addr, GPR:$src),
                         [(truncstorei16 GPR:$src, GPR:$addr)]>;
 
 let mayStore = 1 in
+def STORE16O : K16Inst<(outs), (ins GPR:$base, GPR:$src, i32imm:$offset),
+                         "store16 [$base + $offset], $src",
+                         [], 4>;
+
+let mayStore = 1 in
 def STORE32 : K16Inst<(outs), (ins GPR:$addr, GPR:$src),
                         "store32 [$addr], $src",
                         [(store GPR:$src, GPR:$addr)]>;
+
+let mayStore = 1 in
+def STORE32O : K16Inst<(outs), (ins GPR:$base, GPR:$src, i32imm:$offset),
+                         "store32 [$base + $offset], $src",
+                         [], 4>;
 
 let isCodeGenOnly = 1, Defs = [SP], Uses = [SP] in {
 def ADJCALLSTACKDOWN : K16Pseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),

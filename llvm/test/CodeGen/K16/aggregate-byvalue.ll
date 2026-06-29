@@ -16,8 +16,8 @@ entry:
 
 define %Pair @make_pair(i32 %a, i32 %b) {
 ; CHECK-LABEL: make_pair:
-; CHECK: add r0, r1
-; CHECK: add r1, r2
+; CHECK: addi r0, r1, 0
+; CHECK: addi r1, r2, 0
 ; CHECK: ret
 entry:
   %p0 = insertvalue %Pair poison, i32 %a, 0
@@ -27,13 +27,9 @@ entry:
 
 define void @take_frame(%Frame %frame, ptr %out) {
 ; CHECK-LABEL: take_frame:
-; CHECK: const32 [[REG14_OFFSET:r[0-9]+]], 48
-; CHECK: add [[REG14_ADDR:r[0-9]+]], r15, [[REG14_OFFSET]]
-; CHECK: load32 [[REG14:r[0-9]+]], {{\[}}[[REG14_ADDR]]]
-; CHECK: const32 [[SP_OFFSET:r[0-9]+]], 68
-; CHECK: add [[SP_ADDR:r[0-9]+]], r15, [[SP_OFFSET]]
-; CHECK: load32 [[OUT:r[0-9]+]], {{\[}}[[SP_ADDR]]]
-; CHECK: store32 {{\[}}[[OUT]]], [[REG14]]
+; CHECK: load32 r0, [r15 + 48]
+; CHECK: load32 r1, [r15 + 68]
+; CHECK: store32 [r1], r0
 ; CHECK: ret
 entry:
   %reg14 = extractvalue %Frame %frame, 0, 14

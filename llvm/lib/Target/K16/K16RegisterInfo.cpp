@@ -15,11 +15,35 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include <cstdint>
 
 using namespace llvm;
 
 #define GET_REGINFO_TARGET_DESC
 #include "K16GenRegisterInfo.inc"
+
+static bool fitsI16(int64_t Value) {
+  return Value >= INT16_MIN && Value <= INT16_MAX;
+}
+
+static unsigned offsetOpcode(unsigned Opcode) {
+  switch (Opcode) {
+  case K16::LOAD8:
+    return K16::LOAD8O;
+  case K16::LOAD16:
+    return K16::LOAD16O;
+  case K16::LOAD32:
+    return K16::LOAD32O;
+  case K16::STORE8:
+    return K16::STORE8O;
+  case K16::STORE16:
+    return K16::STORE16O;
+  case K16::STORE32:
+    return K16::STORE32O;
+  default:
+    return 0;
+  }
+}
 
 K16RegisterInfo::K16RegisterInfo() : K16GenRegisterInfo(K16::R14) {}
 
@@ -68,12 +92,27 @@ bool K16RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II, int,
 
   if (MI.getOpcode() == K16::FRAMEADDR) {
     Register DstReg = MI.getOperand(0).getReg();
+    if (fitsI16(Offset)) {
+      BuildMI(MBB, II, DL, TII->get(K16::ADDI), DstReg)
+          .addReg(K16::SP)
+          .addImm(Offset);
+      MI.eraseFromParent();
+      return true;
+    }
     BuildMI(MBB, II, DL, TII->get(K16::CONST32), K16::R13).addImm(Offset);
     BuildMI(MBB, II, DL, TII->get(K16::ADD), DstReg)
         .addReg(K16::SP)
         .addReg(K16::R13, RegState::Kill);
     MI.eraseFromParent();
     return true;
+  }
+
+  if (unsigned OffsetOpcode = offsetOpcode(MI.getOpcode());
+      OffsetOpcode != 0 && fitsI16(Offset)) {
+    MI.setDesc(TII->get(OffsetOpcode));
+    MI.getOperand(FIOperandNum).ChangeToRegister(K16::SP, false);
+    MI.addOperand(MachineOperand::CreateImm(Offset));
+    return false;
   }
 
   BuildMI(MBB, II, DL, TII->get(K16::CONST32), K16::R13).addImm(Offset);

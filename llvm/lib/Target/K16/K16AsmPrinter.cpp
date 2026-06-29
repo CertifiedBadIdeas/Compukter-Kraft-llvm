@@ -19,6 +19,7 @@
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <cstdint>
 
 using namespace llvm;
 
@@ -58,18 +59,29 @@ void K16AsmPrinter::emitInstruction(const MachineInstr *MI) {
     if (Amount == 0)
       return;
 
-    MCInst Size;
-    Size.setOpcode(K16::CONST32);
-    Size.addOperand(MCOperand::createReg(K16::R13));
-    Size.addOperand(MCOperand::createImm(Amount));
-    EmitToStreamer(*OutStreamer, Size);
+    if (Amount > INT16_MAX) {
+      MCInst Size;
+      Size.setOpcode(K16::CONST32);
+      Size.addOperand(MCOperand::createReg(K16::R13));
+      Size.addOperand(MCOperand::createImm(Amount));
+      EmitToStreamer(*OutStreamer, Size);
+
+      MCInst Adjust;
+      Adjust.setOpcode(MI->getOpcode() == K16::ADJCALLSTACKDOWN ? K16::SUB
+                                                                 : K16::ADD);
+      Adjust.addOperand(MCOperand::createReg(K16::SP));
+      Adjust.addOperand(MCOperand::createReg(K16::SP));
+      Adjust.addOperand(MCOperand::createReg(K16::R13));
+      EmitToStreamer(*OutStreamer, Adjust);
+      return;
+    }
 
     MCInst Adjust;
-    Adjust.setOpcode(MI->getOpcode() == K16::ADJCALLSTACKDOWN ? K16::SUB
-                                                               : K16::ADD);
+    Adjust.setOpcode(K16::ADDI);
     Adjust.addOperand(MCOperand::createReg(K16::SP));
     Adjust.addOperand(MCOperand::createReg(K16::SP));
-    Adjust.addOperand(MCOperand::createReg(K16::R13));
+    Adjust.addOperand(MCOperand::createImm(
+        MI->getOpcode() == K16::ADJCALLSTACKDOWN ? -Amount : Amount));
     EmitToStreamer(*OutStreamer, Adjust);
     return;
   }

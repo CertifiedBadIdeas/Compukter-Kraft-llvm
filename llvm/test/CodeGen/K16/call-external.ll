@@ -3,20 +3,18 @@
 ; RUN: llvm-readobj -r -x .text.k16 %t | FileCheck %s --check-prefix=OBJ
 
 ; ASM-LABEL: caller:
-; ASM: const32 r13, 4
-; ASM: sub r15, r15, r13
+; ASM: addi r15, r15, -4
 ; ASM: call32 callee
-; ASM: const32 r13, 4
-; ASM: add r15, r15, r13
+; ASM: addi r15, r15, 4
 ; ASM: ret
 
 ; OBJ: Relocations [
 ; OBJ: Section ({{.*}}) .rela.text.k16 {
-; OBJ: 0xC R_K16_CALL32 callee 0x0
+; OBJ: 0x6 R_K16_CALL32 callee 0x0
 ; OBJ: }
 ; OBJ: Hex dump of section '.text.k16':
-; OBJ-NEXT: 0x00000000 01ed0400 0000012f fd0001ee 00000000
-; OBJ-NEXT: 0x00000010 008e01ed 04000000 002ffd00 0090
+; OBJ-NEXT: 0x00000000 f23ffcff 01ee0000 0000008e f23f0400
+; OBJ-NEXT: 0x00000010 0090
 
 declare i32 @callee()
 

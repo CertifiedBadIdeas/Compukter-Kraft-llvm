@@ -12,8 +12,11 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include <cstdint>
 
 using namespace llvm;
+
+static bool fitsI16(uint64_t Value) { return Value <= INT16_MAX; }
 
 K16FrameLowering::K16FrameLowering()
     : TargetFrameLowering(TargetFrameLowering::StackGrowsDown, Align(8), 0,
@@ -36,6 +39,13 @@ MachineBasicBlock::iterator K16FrameLowering::eliminateCallFramePseudoInstr(
   if (Amount != 0 && !hasReservedCallFrame(MF)) {
     DebugLoc DL = Old.getDebugLoc();
     unsigned Opcode = Old.getOpcode();
+    if (fitsI16(Amount)) {
+      BuildMI(MBB, I, DL, TII->get(K16::ADDI), K16::SP)
+          .addReg(K16::SP)
+          .addImm(Opcode == K16::ADJCALLSTACKDOWN ? -int64_t(Amount)
+                                                  : int64_t(Amount));
+      return MBB.erase(I);
+    }
     BuildMI(MBB, I, DL, TII->get(K16::CONST32), K16::R13).addImm(Amount);
     if (Opcode == K16::ADJCALLSTACKDOWN) {
       BuildMI(MBB, I, DL, TII->get(K16::SUB), K16::SP)
@@ -62,6 +72,12 @@ void K16FrameLowering::emitPrologue(MachineFunction &MF,
   const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
   MachineBasicBlock::iterator Insert = MBB.begin();
   DebugLoc DL = MBB.findDebugLoc(Insert);
+  if (fitsI16(StackSize)) {
+    BuildMI(MBB, Insert, DL, TII->get(K16::ADDI), K16::SP)
+        .addReg(K16::SP)
+        .addImm(-int64_t(StackSize));
+    return;
+  }
   BuildMI(MBB, Insert, DL, TII->get(K16::CONST32), K16::R13)
       .addImm(StackSize);
   BuildMI(MBB, Insert, DL, TII->get(K16::SUB), K16::SP)
@@ -80,6 +96,12 @@ void K16FrameLowering::emitEpilogue(MachineFunction &MF,
   const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
   MachineBasicBlock::iterator Insert = MBB.getFirstTerminator();
   DebugLoc DL = MBB.findDebugLoc(Insert);
+  if (fitsI16(StackSize)) {
+    BuildMI(MBB, Insert, DL, TII->get(K16::ADDI), K16::SP)
+        .addReg(K16::SP)
+        .addImm(StackSize);
+    return;
+  }
   BuildMI(MBB, Insert, DL, TII->get(K16::CONST32), K16::R13)
       .addImm(StackSize);
   BuildMI(MBB, Insert, DL, TII->get(K16::ADD), K16::SP)

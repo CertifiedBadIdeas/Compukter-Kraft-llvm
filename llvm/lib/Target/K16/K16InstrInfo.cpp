@@ -89,10 +89,9 @@ void K16InstrInfo::copyPhysReg(MachineBasicBlock &MBB,
   if (DestReg == SrcReg)
     return;
 
-  BuildMI(MBB, I, DL, get(K16::CONST32), K16::R13).addImm(0);
-  BuildMI(MBB, I, DL, get(K16::ADD), DestReg)
+  BuildMI(MBB, I, DL, get(K16::ADDI), DestReg)
       .addReg(SrcReg, getKillRegState(KillSrc))
-      .addReg(K16::R13, RegState::Kill);
+      .addImm(0);
 }
 
 bool K16InstrInfo::analyzeBranch(MachineBasicBlock &MBB,

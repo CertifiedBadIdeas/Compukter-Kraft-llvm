@@ -17,6 +17,7 @@
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/EndianStream.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <cstdint>
 
 using namespace llvm;
 
@@ -37,6 +38,8 @@ public:
 private:
   uint16_t getRegEncoding(const MCOperand &Operand) const;
   static void emitWord(SmallVectorImpl<char> &CB, uint16_t Word);
+  static void emitI16Operand(SmallVectorImpl<char> &CB,
+                             const MCOperand &Operand);
   static void emitU32Operand(SmallVectorImpl<char> &CB,
                              SmallVectorImpl<MCFixup> &Fixups,
                              const MCOperand &Operand, MCFixupKind Kind);
@@ -52,6 +55,16 @@ uint16_t K16MCCodeEmitter::getRegEncoding(const MCOperand &Operand) const {
 
 void K16MCCodeEmitter::emitWord(SmallVectorImpl<char> &CB, uint16_t Word) {
   support::endian::write(CB, Word, llvm::endianness::little);
+}
+
+void K16MCCodeEmitter::emitI16Operand(SmallVectorImpl<char> &CB,
+                                      const MCOperand &Operand) {
+  if (!Operand.isImm())
+    report_fatal_error("K16 encoder expected an imm16 operand");
+  int64_t Imm = Operand.getImm();
+  if (Imm < INT16_MIN || Imm > INT16_MAX)
+    report_fatal_error("K16 encoder expected an immediate in i16 range");
+  emitWord(CB, static_cast<uint16_t>(static_cast<int16_t>(Imm)));
 }
 
 void K16MCCodeEmitter::emitU32Operand(SmallVectorImpl<char> &CB,
@@ -123,6 +136,13 @@ void K16MCCodeEmitter::encodeInstruction(
     uint16_t Rhs = getRegEncoding(MI.getOperand(2));
     emitWord(CB, 0x2001 | (Dst << 8));
     emitWord(CB, (Lhs << 4) | Rhs);
+    return;
+  }
+  case K16::ADDI: {
+    uint16_t Dst = getRegEncoding(MI.getOperand(0));
+    uint16_t Src = getRegEncoding(MI.getOperand(1));
+    emitWord(CB, 0x3002 | (Dst << 8) | (Src << 4));
+    emitI16Operand(CB, MI.getOperand(2));
     return;
   }
   case K16::MUL: {
@@ -235,10 +255,24 @@ void K16MCCodeEmitter::encodeInstruction(
     emitWord(CB, 0x4000 | (Dst << 8) | (Addr << 4));
     return;
   }
+  case K16::LOAD8O: {
+    uint16_t Dst = getRegEncoding(MI.getOperand(0));
+    uint16_t Base = getRegEncoding(MI.getOperand(1));
+    emitWord(CB, 0x3003 | (Dst << 8) | (Base << 4));
+    emitI16Operand(CB, MI.getOperand(2));
+    return;
+  }
   case K16::LOAD16: {
     uint16_t Dst = getRegEncoding(MI.getOperand(0));
     uint16_t Addr = getRegEncoding(MI.getOperand(1));
     emitWord(CB, 0x4001 | (Dst << 8) | (Addr << 4));
+    return;
+  }
+  case K16::LOAD16O: {
+    uint16_t Dst = getRegEncoding(MI.getOperand(0));
+    uint16_t Base = getRegEncoding(MI.getOperand(1));
+    emitWord(CB, 0x3004 | (Dst << 8) | (Base << 4));
+    emitI16Operand(CB, MI.getOperand(2));
     return;
   }
   case K16::LOAD32: {
@@ -247,10 +281,24 @@ void K16MCCodeEmitter::encodeInstruction(
     emitWord(CB, 0x4002 | (Dst << 8) | (Addr << 4));
     return;
   }
+  case K16::LOAD32O: {
+    uint16_t Dst = getRegEncoding(MI.getOperand(0));
+    uint16_t Base = getRegEncoding(MI.getOperand(1));
+    emitWord(CB, 0x3005 | (Dst << 8) | (Base << 4));
+    emitI16Operand(CB, MI.getOperand(2));
+    return;
+  }
   case K16::STORE8: {
     uint16_t Addr = getRegEncoding(MI.getOperand(0));
     uint16_t Src = getRegEncoding(MI.getOperand(1));
     emitWord(CB, 0x5000 | (Addr << 8) | (Src << 4));
+    return;
+  }
+  case K16::STORE8O: {
+    uint16_t Base = getRegEncoding(MI.getOperand(0));
+    uint16_t Src = getRegEncoding(MI.getOperand(1));
+    emitWord(CB, 0x3006 | (Base << 8) | (Src << 4));
+    emitI16Operand(CB, MI.getOperand(2));
     return;
   }
   case K16::STORE16: {
@@ -259,10 +307,24 @@ void K16MCCodeEmitter::encodeInstruction(
     emitWord(CB, 0x5001 | (Addr << 8) | (Src << 4));
     return;
   }
+  case K16::STORE16O: {
+    uint16_t Base = getRegEncoding(MI.getOperand(0));
+    uint16_t Src = getRegEncoding(MI.getOperand(1));
+    emitWord(CB, 0x3007 | (Base << 8) | (Src << 4));
+    emitI16Operand(CB, MI.getOperand(2));
+    return;
+  }
   case K16::STORE32: {
     uint16_t Addr = getRegEncoding(MI.getOperand(0));
     uint16_t Src = getRegEncoding(MI.getOperand(1));
     emitWord(CB, 0x5002 | (Addr << 8) | (Src << 4));
+    return;
+  }
+  case K16::STORE32O: {
+    uint16_t Base = getRegEncoding(MI.getOperand(0));
+    uint16_t Src = getRegEncoding(MI.getOperand(1));
+    emitWord(CB, 0x3008 | (Base << 8) | (Src << 4));
+    emitI16Operand(CB, MI.getOperand(2));
     return;
   }
   case K16::CALL32:
