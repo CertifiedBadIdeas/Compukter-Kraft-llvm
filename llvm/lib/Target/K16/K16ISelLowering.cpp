@@ -130,6 +130,9 @@ K16TargetLowering::K16TargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::SRL_PARTS, MVT::i32, Expand);
   setOperationAction(ISD::SRA_PARTS, MVT::i32, Expand);
   setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i1, Expand);
+  setLoadExtAction(ISD::EXTLOAD, MVT::i32, MVT::i1, Promote);
+  setLoadExtAction(ISD::SEXTLOAD, MVT::i32, MVT::i1, Promote);
+  setLoadExtAction(ISD::ZEXTLOAD, MVT::i32, MVT::i1, Promote);
   setOperationAction(ISD::FSHL, MVT::i32, Expand);
   setOperationAction(ISD::FSHR, MVT::i32, Expand);
   setOperationAction(ISD::ROTL, MVT::i32, Expand);
