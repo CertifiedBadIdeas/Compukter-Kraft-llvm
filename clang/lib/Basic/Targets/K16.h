@@ -27,7 +27,11 @@ public:
     IntWidth = IntAlign = 32;
     LongWidth = LongAlign = 32;
     LongLongWidth = 64;
-    LongLongAlign = 32;
+    LongLongAlign = 64;
+    DoubleWidth = DoubleAlign = 64;
+    DoubleFormat = &llvm::APFloat::IEEEdouble();
+    LongDoubleWidth = LongDoubleAlign = 64;
+    LongDoubleFormat = &llvm::APFloat::IEEEdouble();
     PointerWidth = PointerAlign = 32;
     SuitableAlign = 32;
     SizeType = UnsignedInt;
