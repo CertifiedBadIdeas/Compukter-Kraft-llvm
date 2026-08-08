@@ -8,6 +8,7 @@
 
 #include "K16TargetMachine.h"
 #include "K16.h"
+#include "K16MachineFunctionInfo.h"
 #include "TargetInfo/K16TargetInfo.h"
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/CodeGen/Passes.h"
@@ -95,6 +96,13 @@ public:
 
 TargetPassConfig *K16TargetMachine::createPassConfig(PassManagerBase &PM) {
   return new K16PassConfig(*this, PM);
+}
+
+MachineFunctionInfo *K16TargetMachine::createMachineFunctionInfo(
+    BumpPtrAllocator &Allocator, const Function &F,
+    const TargetSubtargetInfo *STI) const {
+  return K16MachineFunctionInfo::create<K16MachineFunctionInfo>(Allocator, F,
+                                                                STI);
 }
 
 bool K16PassConfig::addInstSelector() {

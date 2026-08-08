@@ -32,6 +32,8 @@ public:
   explicit K16TargetLowering(const TargetMachine &TM,
                                const K16Subtarget &STI);
 
+  SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
+
   SDValue LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv,
                                bool IsVarArg,
                                const SmallVectorImpl<ISD::InputArg> &Ins,
@@ -45,6 +47,9 @@ public:
   SDValue LowerCall(CallLoweringInfo &CLI,
                     SmallVectorImpl<SDValue> &InVals) const override;
   const char *getTargetNodeName(unsigned Opcode) const override;
+
+private:
+  SDValue lowerVASTART(SDValue Op, SelectionDAG &DAG) const;
 };
 
 } // namespace llvm

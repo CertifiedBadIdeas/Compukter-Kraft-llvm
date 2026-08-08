@@ -7,13 +7,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "K16ISelLowering.h"
+#include "K16MachineFunctionInfo.h"
 #include "K16Subtarget.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/ADT/StringRef.h"
 #include <climits>
 #include <cstring>
 
@@ -127,6 +128,28 @@ K16TargetLowering::K16TargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::BSWAP, MVT::i32, Expand);
   setOperationAction(ISD::SELECT, MVT::i32, Legal);
   setOperationAction(ISD::SELECT_CC, MVT::i32, Expand);
+  setOperationAction(ISD::VASTART, MVT::Other, Custom);
+}
+
+SDValue K16TargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
+  switch (Op.getOpcode()) {
+  case ISD::VASTART:
+    return lowerVASTART(Op, DAG);
+  default:
+    llvm_unreachable("unexpected K16 custom lowering operation");
+  }
+}
+
+SDValue K16TargetLowering::lowerVASTART(SDValue Op, SelectionDAG &DAG) const {
+  MachineFunction &MF = DAG.getMachineFunction();
+  const auto *FuncInfo = MF.getInfo<K16MachineFunctionInfo>();
+  SDValue VAListAddress = Op.getOperand(1);
+  EVT PtrVT = VAListAddress.getValueType();
+  SDValue FirstVarArg =
+      DAG.getFrameIndex(FuncInfo->getVarArgsFrameIndex(), PtrVT);
+  const Value *SourceValue = cast<SrcValueSDNode>(Op.getOperand(2))->getValue();
+  return DAG.getStore(Op.getOperand(0), SDLoc(Op), FirstVarArg, VAListAddress,
+                      MachinePointerInfo(SourceValue));
 }
 
 SDValue K16TargetLowering::LowerFormalArguments(
@@ -135,8 +158,6 @@ SDValue K16TargetLowering::LowerFormalArguments(
     SelectionDAG &DAG, SmallVectorImpl<SDValue> &InVals) const {
   if (!isSupportedK16CallingConv(CallConv))
     report_fatal_error("K16 unsupported function calling convention");
-  if (IsVarArg)
-    report_fatal_error("K16 varargs are not implemented");
 
   MachineFunction &MF = DAG.getMachineFunction();
   MachineFrameInfo &MFI = MF.getFrameInfo();
@@ -161,6 +182,16 @@ SDValue K16TargetLowering::LowerFormalArguments(
     InVals.push_back(DAG.getLoad(
         MVT::i32, DL, Chain, Addr,
         MachinePointerInfo::getFixedStack(DAG.getMachineFunction(), FI)));
+  }
+
+  if (IsVarArg) {
+    unsigned FixedStackArgCount = Ins.size() > std::size(K16ArgRegs)
+                                      ? Ins.size() - std::size(K16ArgRegs)
+                                      : 0;
+    int64_t VarArgsOffset =
+        K16ReturnPcBytes + FixedStackArgCount * K16StackSlotBytes;
+    int FI = MFI.CreateFixedObject(K16StackSlotBytes, VarArgsOffset, true);
+    MF.getInfo<K16MachineFunctionInfo>()->setVarArgsFrameIndex(FI);
   }
 
   return Chain;
