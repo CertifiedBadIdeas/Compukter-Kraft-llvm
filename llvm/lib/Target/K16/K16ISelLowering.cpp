@@ -15,6 +15,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Support/MathExtras.h"
 #include <climits>
 #include <cstring>
 
@@ -24,6 +25,17 @@ static const MCPhysReg K16ArgRegs[] = {K16::R1, K16::R2, K16::R3};
 static const MCPhysReg K16RetRegs[] = {K16::R0, K16::R1, K16::R2, K16::R3};
 static constexpr unsigned K16StackSlotBytes = 4;
 static constexpr unsigned K16ReturnPcBytes = 4;
+static constexpr unsigned K16MaxArgumentAlignment = 8;
+
+namespace {
+
+struct K16OutgoingArgLocation {
+  MCRegister Reg;
+  unsigned StackOffset = 0;
+  unsigned ByValCopyOffset = UINT_MAX;
+};
+
+} // namespace
 
 static bool isSupportedK16CallingConv(CallingConv::ID CallConv) {
   switch (CallConv) {
@@ -128,6 +140,9 @@ K16TargetLowering::K16TargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::BSWAP, MVT::i32, Expand);
   setOperationAction(ISD::SELECT, MVT::i32, Legal);
   setOperationAction(ISD::SELECT_CC, MVT::i32, Expand);
+  setOperationAction(ISD::VAARG, MVT::Other, Expand);
+  setOperationAction(ISD::VACOPY, MVT::Other, Expand);
+  setOperationAction(ISD::VAEND, MVT::Other, Expand);
   setOperationAction(ISD::VASTART, MVT::Other, Custom);
 }
 
@@ -239,8 +254,6 @@ SDValue K16TargetLowering::LowerCall(
 
   if (!isSupportedK16CallingConv(CLI.CallConv))
     report_fatal_error("K16 unsupported call calling convention");
-  if (CLI.IsVarArg)
-    report_fatal_error("K16 varargs calls are not implemented");
   if (CLI.Ins.size() > std::size(K16RetRegs))
     report_fatal_error("K16 calls support at most four i32 return values");
   if (CLI.Outs.empty() && CLI.Ins.empty() && isK16HaltOnceCallee(Callee))
@@ -265,35 +278,119 @@ SDValue K16TargetLowering::LowerCall(
                        CLI.OutVals[0]);
   }
 
-  unsigned StackArgCount =
-      CLI.Outs.size() > std::size(K16ArgRegs)
-          ? CLI.Outs.size() - std::size(K16ArgRegs)
+  unsigned FixedSlotCount = 0;
+  for (const ISD::OutputArg &Out : CLI.Outs)
+    if (!Out.Flags.isVarArg())
+      ++FixedSlotCount;
+
+  unsigned FixedStackBytes =
+      FixedSlotCount > std::size(K16ArgRegs)
+          ? (FixedSlotCount - std::size(K16ArgRegs)) * K16StackSlotBytes
           : 0;
-  unsigned StackArgBytes = StackArgCount * K16StackSlotBytes;
-  unsigned CallFrameBytes = StackArgBytes;
+  unsigned NextVarArgCalleeOffset = K16ReturnPcBytes + FixedStackBytes;
+  unsigned FixedSlotIndex = 0;
+  SmallVector<K16OutgoingArgLocation, 8> ArgLocations(CLI.Outs.size());
+
+  for (unsigned I = 0, E = CLI.Outs.size(); I != E;) {
+    const ISD::OutputArg &Out = CLI.Outs[I];
+    if (!Out.Flags.isVarArg()) {
+      if (Out.VT != MVT::i32)
+        report_fatal_error("K16 only supports i32 fixed call fragments");
+      if (FixedSlotIndex < std::size(K16ArgRegs))
+        ArgLocations[I].Reg = K16ArgRegs[FixedSlotIndex];
+      else
+        ArgLocations[I].StackOffset =
+            (FixedSlotIndex - std::size(K16ArgRegs)) * K16StackSlotBytes;
+      ++FixedSlotIndex;
+      ++I;
+      continue;
+    }
+
+    unsigned GroupEnd = I + 1;
+    while (GroupEnd != E && CLI.Outs[GroupEnd].Flags.isVarArg() &&
+           CLI.Outs[GroupEnd].OrigArgIndex == Out.OrigArgIndex)
+      ++GroupEnd;
+
+    unsigned Alignment = Out.Flags.getNonZeroOrigAlign().value();
+    if (Alignment > K16MaxArgumentAlignment)
+      report_fatal_error(
+          "K16 variadic arguments cannot require alignment above 8 bytes");
+
+    unsigned GroupExtent = 0;
+    for (unsigned Part = I; Part != GroupEnd; ++Part) {
+      const ISD::OutputArg &Fragment = CLI.Outs[Part];
+      unsigned ExpectedOffset = (Part - I) * K16StackSlotBytes;
+      if (Fragment.VT != MVT::i32 || Fragment.PartOffset != ExpectedOffset)
+        report_fatal_error(
+            "K16 variadic arguments must lower to contiguous i32 fragments");
+      GroupExtent = Fragment.PartOffset + K16StackSlotBytes;
+    }
+
+    GroupExtent = alignTo(GroupExtent, K16StackSlotBytes);
+    NextVarArgCalleeOffset = alignTo(NextVarArgCalleeOffset, Alignment);
+    unsigned GroupCallerOffset = NextVarArgCalleeOffset - K16ReturnPcBytes;
+    for (unsigned Part = I; Part != GroupEnd; ++Part)
+      ArgLocations[Part].StackOffset =
+          GroupCallerOffset + CLI.Outs[Part].PartOffset;
+    NextVarArgCalleeOffset += GroupExtent;
+    I = GroupEnd;
+  }
+
+  unsigned CallFrameBytes = NextVarArgCalleeOffset - K16ReturnPcBytes;
+  for (unsigned I = 0, E = CLI.Outs.size(); I != E; ++I) {
+    const ISD::ArgFlagsTy &Flags = CLI.Outs[I].Flags;
+    if (!Flags.isByVal())
+      continue;
+    unsigned Alignment = Flags.getNonZeroByValAlign().value();
+    if (Alignment > K16MaxArgumentAlignment)
+      report_fatal_error(
+          "K16 aggregate arguments cannot require alignment above 8 bytes");
+    unsigned CopyCalleeOffset =
+        alignTo(K16ReturnPcBytes + CallFrameBytes, Alignment);
+    ArgLocations[I].ByValCopyOffset = CopyCalleeOffset - K16ReturnPcBytes;
+    CallFrameBytes = ArgLocations[I].ByValCopyOffset +
+                     alignTo(Flags.getByValSize(), K16StackSlotBytes);
+  }
   Chain = DAG.getCALLSEQ_START(Chain, CallFrameBytes, 0, DL);
 
   SmallVector<std::pair<MCRegister, SDValue>, 3> RegsToPass;
   SmallVector<SDValue, 8> MemOpChains;
   SDValue StackPtr;
+  auto GetStackAddress = [&](unsigned Offset) {
+    if (!StackPtr.getNode())
+      StackPtr = DAG.getCopyFromReg(Chain, DL, K16::SP, MVT::i32);
+    if (Offset == 0)
+      return StackPtr;
+    return DAG.getNode(ISD::ADD, DL, MVT::i32, StackPtr,
+                       DAG.getConstant(Offset, DL, MVT::i32));
+  };
+
   for (unsigned I = 0, E = CLI.OutVals.size(); I != E; ++I) {
-    if (CLI.Outs[I].VT != MVT::i32)
-      report_fatal_error("K16 only supports i32 call arguments");
-    if (I < std::size(K16ArgRegs)) {
-      RegsToPass.push_back({K16ArgRegs[I], CLI.OutVals[I]});
+    const K16OutgoingArgLocation &Location = ArgLocations[I];
+    SDValue OutValue = CLI.OutVals[I];
+    if (Location.ByValCopyOffset != UINT_MAX) {
+      const ISD::ArgFlagsTy &Flags = CLI.Outs[I].Flags;
+      SDValue CopyAddress = GetStackAddress(Location.ByValCopyOffset);
+      SDValue Size = DAG.getConstant(Flags.getByValSize(), DL, MVT::i32);
+      MemOpChains.push_back(
+          DAG.getMemcpy(Chain, DL, CopyAddress, OutValue, Size,
+                        Flags.getNonZeroByValAlign(), /*isVolatile=*/false,
+                        /*AlwaysInline=*/true, /*CI=*/nullptr, std::nullopt,
+                        MachinePointerInfo::getStack(DAG.getMachineFunction(),
+                                                     Location.ByValCopyOffset),
+                        MachinePointerInfo()));
+      OutValue = CopyAddress;
+    }
+
+    if (Location.Reg) {
+      RegsToPass.push_back({Location.Reg, OutValue});
       continue;
     }
 
-    if (!StackPtr.getNode())
-      StackPtr = DAG.getCopyFromReg(Chain, DL, K16::SP, MVT::i32);
-    unsigned Offset = (I - std::size(K16ArgRegs)) * K16StackSlotBytes;
-    SDValue Addr =
-        Offset == 0
-            ? StackPtr
-            : DAG.getNode(ISD::ADD, DL, MVT::i32, StackPtr,
-                          DAG.getConstant(Offset, DL, MVT::i32));
+    unsigned Offset = Location.StackOffset;
+    SDValue Addr = GetStackAddress(Offset);
     MemOpChains.push_back(DAG.getStore(
-        Chain, DL, CLI.OutVals[I], Addr,
+        Chain, DL, OutValue, Addr,
         MachinePointerInfo::getStack(DAG.getMachineFunction(), Offset)));
   }
 
