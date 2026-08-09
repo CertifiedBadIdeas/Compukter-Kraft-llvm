@@ -49,6 +49,7 @@ public:
   const char *getTargetNodeName(unsigned Opcode) const override;
 
 private:
+  const K16Subtarget &Subtarget;
   SDValue lowerVASTART(SDValue Op, SelectionDAG &DAG) const;
 };
 

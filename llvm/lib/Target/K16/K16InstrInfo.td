@@ -36,6 +36,8 @@ def frameaddr : Operand<iPTR>;
 def calltarget : Operand<iPTR>;
 def brtarget : Operand<OtherVT>;
 def simm16 : PatLeaf<(imm), [{ return isInt<16>(N->getSExtValue()); }]>;
+def HasF32R32LR : Predicate<"Subtarget->hasF32R32LR()">;
+def NoF32R32LR : Predicate<"!Subtarget->hasF32R32LR()">;
 
 class K16Inst<dag outs, dag ins, string asmstr, list<dag> pattern = [],
                 int size = 2>
@@ -210,7 +212,7 @@ def STORE32O : K16Inst<(outs), (ins GPR:$base, GPR:$src, i32imm:$offset),
                          "store32 [$base + $offset], $src",
                          [], 4>;
 
-let isCodeGenOnly = 1, Defs = [SP], Uses = [SP] in {
+let isCodeGenOnly = 1, Defs = [SP, SP32], Uses = [SP, SP32] in {
 def ADJCALLSTACKDOWN : K16Pseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
                                    "#ADJCALLSTACKDOWN $amt1 $amt2",
                                    [(callseq_start timm:$amt1, timm:$amt2)]>;
@@ -222,17 +224,24 @@ def ADJCALLSTACKUP : K16Pseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
 def FRAMEADDR : K16Pseudo<(outs GPR:$dst), (ins frameaddr:$base),
                             "#FRAMEADDR $dst, $base", []>;
 
-let isCall = 1, Defs = [R0, R14], Uses = [SP] in
+let isCall = 1, Defs = [R0, R14], Uses = [SP], Predicates = [NoF32R32LR] in
 def CALL32 : K16Inst<(outs), (ins calltarget:$target, variable_ops),
                        "call32 $target", [], 8>;
 
-let isCall = 1, Defs = [R0, R14], Uses = [SP] in
+let isCall = 1, Defs = [R0, R14], Uses = [SP], Predicates = [NoF32R32LR] in
 def CALLR : K16Inst<(outs), (ins GPR:$target, variable_ops),
                       "call $target", [], 2>;
+
+let isCall = 1, Defs = [R0, R1, LR], Uses = [SP32],
+    Predicates = [HasF32R32LR] in
+def CALL32_R32 : K16Inst<(outs), (ins calltarget:$target, variable_ops),
+                           "call32 $target", [], 4>;
 
 def : Pat<(K16call tglobaladdr:$target), (CALL32 tglobaladdr:$target)>;
 def : Pat<(K16call texternalsym:$target), (CALL32 texternalsym:$target)>;
 def : Pat<(K16call GPR:$target), (CALLR GPR:$target)>;
+def : Pat<(K16call tglobaladdr:$target), (CALL32_R32 tglobaladdr:$target)>;
+def : Pat<(K16call texternalsym:$target), (CALL32_R32 texternalsym:$target)>;
 
 let isBranch = 1, isTerminator = 1, isBarrier = 1, Defs = [R14] in
 def BR : K16Inst<(outs), (ins brtarget:$target),
@@ -300,5 +309,10 @@ def : Pat<(brcc SETGE, GPR:$lhs, GPR:$rhs, bb:$target),
 def : Pat<(brcc SETLE, GPR:$lhs, GPR:$rhs, bb:$target),
           (BRZ (LT_S GPR:$rhs, GPR:$lhs), bb:$target)>;
 
-let isTerminator = 1, isReturn = 1, isBarrier = 1 in
+let isTerminator = 1, isReturn = 1, isBarrier = 1,
+    Predicates = [NoF32R32LR] in
 def RET : K16Inst<(outs), (ins), "ret", [(K16retflag)]>;
+
+let isTerminator = 1, isReturn = 1, isBarrier = 1,
+    Uses = [LR], Predicates = [HasF32R32LR] in
+def RET_R32 : K16Inst<(outs), (ins), "ret", [(K16retflag)]>;

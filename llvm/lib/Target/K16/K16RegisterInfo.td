@@ -6,9 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-class K16Reg<bits<4> Enc, string Name> : Register<Name> {
+class K16Reg<bits<5> Enc, string Name> : Register<Name> {
   let Namespace = "K16";
-  let HWEncoding{3-0} = Enc;
+  let HWEncoding{4-0} = Enc;
   let DwarfNumbers = [Enc];
 }
 
@@ -28,9 +28,33 @@ def FP  : K16Reg<12, "r12">;
 def R13 : K16Reg<13, "r13">;
 def R14 : K16Reg<14, "r14">;
 def SP  : K16Reg<15, "r15">;
+def R16 : K16Reg<16, "r16">;
+def R17 : K16Reg<17, "r17">;
+def R18 : K16Reg<18, "r18">;
+def R19 : K16Reg<19, "r19">;
+def R20 : K16Reg<20, "r20">;
+def R21 : K16Reg<21, "r21">;
+def R22 : K16Reg<22, "r22">;
+def R23 : K16Reg<23, "r23">;
+def R24 : K16Reg<24, "r24">;
+def R25 : K16Reg<25, "r25">;
+def R26 : K16Reg<26, "r26">;
+def R27 : K16Reg<27, "r27">;
+def R28 : K16Reg<28, "r28">;
+def R29 : K16Reg<29, "r29">;
+def SP32 : K16Reg<30, "r30">;
+def LR : K16Reg<31, "r31">;
 
 def GPR : RegisterClass<"K16", [i32], 32,
-  (add R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, FP, R13, R14, SP)>;
+  (add R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, FP, R13, R14, SP,
+       R16, R17, R18, R19, R20, R21, R22, R23, R24, R25, R26, R27, R28, R29,
+       SP32, LR)>;
 
 def CSR_NoRegs : CalleeSavedRegs<(add)>;
 def CSR_CallPreserved : CalleeSavedRegs<(add FP, SP)>;
+def CSR_F32R32LR_Save : CalleeSavedRegs<
+  (add R16, R17, R18, R19, R20, R21, R22, R23, R24, R25, R26, R27, R28, R29,
+       LR)>;
+def CSR_F32R32LR_Preserved : CalleeSavedRegs<
+  (add R16, R17, R18, R19, R20, R21, R22, R23, R24, R25, R26, R27, R28, R29,
+       SP32)>;

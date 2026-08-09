@@ -14,18 +14,27 @@ using namespace llvm;
 
 #define DEBUG_TYPE "k16-subtarget"
 
+#define GET_SUBTARGETINFO_ENUM
 #define GET_SUBTARGETINFO_TARGET_DESC
 #define GET_SUBTARGETINFO_CTOR
 #include "K16GenSubtargetInfo.inc"
 
 void K16Subtarget::anchor() {}
 
+K16Subtarget &K16Subtarget::initializeSubtargetDependencies(
+    StringRef CPU, StringRef TuneCPU, StringRef FS) {
+  ParseSubtargetFeatures(CPU, TuneCPU, FS);
+  return *this;
+}
+
 K16Subtarget::K16Subtarget(const Triple &TT, const std::string &CPU,
                                const std::string &FS,
                                const TargetMachine &TM)
     : K16GenSubtargetInfo(TT, CPU.empty() ? "generic" : CPU,
                             CPU.empty() ? "generic" : CPU, FS),
-      InstrInfo(*this), FrameLowering(), TLInfo(TM, *this) {}
+      InstrInfo(initializeSubtargetDependencies(
+          CPU.empty() ? "generic" : CPU, CPU.empty() ? "generic" : CPU, FS)),
+      FrameLowering(), TLInfo(TM, *this) {}
 
 void K16Subtarget::initLibcallLoweringInfo(LibcallLoweringInfo &Info) const {
   Info.setLibcallImpl(RTLIB::MEMCPY, RTLIB::impl_memcpy);

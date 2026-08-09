@@ -22,6 +22,11 @@ namespace llvm {
 
 class K16Subtarget : public K16GenSubtargetInfo {
   void anchor();
+  K16Subtarget &initializeSubtargetDependencies(StringRef CPU,
+                                                StringRef TuneCPU,
+                                                StringRef FS);
+
+  bool HasF32R32LR = false;
 
   K16InstrInfo InstrInfo;
   K16FrameLowering FrameLowering;
@@ -33,6 +38,8 @@ public:
                  const std::string &FS, const TargetMachine &TM);
 
   void ParseSubtargetFeatures(StringRef CPU, StringRef TuneCPU, StringRef FS);
+
+  bool hasF32R32LR() const { return HasF32R32LR; }
 
   const K16InstrInfo *getInstrInfo() const override { return &InstrInfo; }
   const K16RegisterInfo *getRegisterInfo() const override {

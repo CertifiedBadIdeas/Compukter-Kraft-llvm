@@ -23,6 +23,10 @@ using namespace llvm;
 
 static const MCPhysReg K16ArgRegs[] = {K16::R1, K16::R2, K16::R3};
 static const MCPhysReg K16RetRegs[] = {K16::R0, K16::R1, K16::R2, K16::R3};
+static const MCPhysReg K16F32R32ArgRegs[] = {
+    K16::R0, K16::R1, K16::R2, K16::R3,
+    K16::R4, K16::R5, K16::R6, K16::R7};
+static const MCPhysReg K16F32R32RetRegs[] = {K16::R0, K16::R1};
 static constexpr unsigned K16StackSlotBytes = 4;
 static constexpr unsigned K16ReturnPcBytes = 4;
 static constexpr unsigned K16MaxArgumentAlignment = 8;
@@ -104,11 +108,12 @@ static bool getK16WriteCsrCallee(SDValue Callee, unsigned &Csr) {
 
 K16TargetLowering::K16TargetLowering(const TargetMachine &TM,
                                          const K16Subtarget &STI)
-    : TargetLowering(TM, STI) {
+    : TargetLowering(TM, STI), Subtarget(STI) {
   addRegisterClass(MVT::i32, &K16::GPRRegClass);
   computeRegisterProperties(STI.getRegisterInfo());
 
-  setStackPointerRegisterToSaveRestore(K16::SP);
+  setStackPointerRegisterToSaveRestore(STI.hasF32R32LR() ? K16::SP32
+                                                         : K16::SP);
   setBooleanContents(ZeroOrOneBooleanContent);
   setMinFunctionAlignment(Align(2));
   setPrefFunctionAlignment(Align(2));
@@ -181,20 +186,24 @@ SDValue K16TargetLowering::LowerFormalArguments(
   MachineFrameInfo &MFI = MF.getFrameInfo();
   MachineRegisterInfo &RegInfo = MF.getRegInfo();
   EVT PtrVT = getPointerTy(MF.getDataLayout());
+  ArrayRef<MCPhysReg> ArgRegs = Subtarget.hasF32R32LR()
+                                    ? ArrayRef(K16F32R32ArgRegs)
+                                    : ArrayRef(K16ArgRegs);
+  unsigned ReturnPcBytes = Subtarget.hasF32R32LR() ? 0 : K16ReturnPcBytes;
 
   for (unsigned I = 0, E = Ins.size(); I != E; ++I) {
     if (Ins[I].VT != MVT::i32)
       report_fatal_error("K16 only supports i32 function arguments");
 
-    if (I < std::size(K16ArgRegs)) {
+    if (I < ArgRegs.size()) {
       Register VReg = RegInfo.createVirtualRegister(&K16::GPRRegClass);
-      RegInfo.addLiveIn(K16ArgRegs[I], VReg);
+      RegInfo.addLiveIn(ArgRegs[I], VReg);
       InVals.push_back(DAG.getCopyFromReg(Chain, DL, VReg, MVT::i32));
       continue;
     }
 
     int64_t Offset =
-        K16ReturnPcBytes + (I - std::size(K16ArgRegs)) * K16StackSlotBytes;
+        ReturnPcBytes + (I - ArgRegs.size()) * K16StackSlotBytes;
     int FI = MFI.CreateFixedObject(K16StackSlotBytes, Offset, true);
     SDValue Addr = DAG.getFrameIndex(FI, PtrVT);
     InVals.push_back(DAG.getLoad(
@@ -203,11 +212,11 @@ SDValue K16TargetLowering::LowerFormalArguments(
   }
 
   if (IsVarArg) {
-    unsigned FixedStackArgCount = Ins.size() > std::size(K16ArgRegs)
-                                      ? Ins.size() - std::size(K16ArgRegs)
+    unsigned FixedStackArgCount = Ins.size() > ArgRegs.size()
+                                      ? Ins.size() - ArgRegs.size()
                                       : 0;
     int64_t VarArgsOffset =
-        K16ReturnPcBytes + FixedStackArgCount * K16StackSlotBytes;
+        ReturnPcBytes + FixedStackArgCount * K16StackSlotBytes;
     int FI = MFI.CreateFixedObject(K16StackSlotBytes, VarArgsOffset, true);
     MF.getInfo<K16MachineFunctionInfo>()->setVarArgsFrameIndex(FI);
   }
@@ -222,8 +231,11 @@ SDValue K16TargetLowering::LowerReturn(
     SelectionDAG &DAG) const {
   if (!isSupportedK16CallingConv(CallConv))
     report_fatal_error("K16 unsupported return calling convention");
-  if (Outs.size() > std::size(K16RetRegs))
-    report_fatal_error("K16 supports at most four i32 return values");
+  ArrayRef<MCPhysReg> RetRegs = Subtarget.hasF32R32LR()
+                                    ? ArrayRef(K16F32R32RetRegs)
+                                    : ArrayRef(K16RetRegs);
+  if (Outs.size() > RetRegs.size())
+    report_fatal_error("K16 has too many i32 return values for this ABI");
 
   SDValue Glue;
   SmallVector<SDValue, 8> RetOps(1, Chain);
@@ -232,10 +244,10 @@ SDValue K16TargetLowering::LowerReturn(
     if (Outs[I].VT != MVT::i32)
       report_fatal_error("K16 only supports i32 return values");
 
-    Chain = DAG.getCopyToReg(Chain, DL, K16RetRegs[I], OutVals[I], Glue);
+    Chain = DAG.getCopyToReg(Chain, DL, RetRegs[I], OutVals[I], Glue);
     Glue = Chain.getValue(1);
     RetOps[0] = Chain;
-    RetOps.push_back(DAG.getRegister(K16RetRegs[I], MVT::i32));
+    RetOps.push_back(DAG.getRegister(RetRegs[I], MVT::i32));
   }
 
   if (Glue.getNode())
@@ -252,13 +264,21 @@ SDValue K16TargetLowering::LowerCall(
   SDValue Chain = CLI.Chain;
   SDValue Callee = CLI.Callee;
   SDValue InGlue;
+  ArrayRef<MCPhysReg> ArgRegs = Subtarget.hasF32R32LR()
+                                    ? ArrayRef(K16F32R32ArgRegs)
+                                    : ArrayRef(K16ArgRegs);
+  ArrayRef<MCPhysReg> RetRegs = Subtarget.hasF32R32LR()
+                                    ? ArrayRef(K16F32R32RetRegs)
+                                    : ArrayRef(K16RetRegs);
+  unsigned ReturnPcBytes = Subtarget.hasF32R32LR() ? 0 : K16ReturnPcBytes;
+  MCRegister StackReg = Subtarget.hasF32R32LR() ? K16::SP32 : K16::SP;
 
   CLI.IsTailCall = false;
 
   if (!isSupportedK16CallingConv(CLI.CallConv))
     report_fatal_error("K16 unsupported call calling convention");
-  if (CLI.Ins.size() > std::size(K16RetRegs))
-    report_fatal_error("K16 calls support at most four i32 return values");
+  if (CLI.Ins.size() > RetRegs.size())
+    report_fatal_error("K16 call has too many i32 return values for this ABI");
   if (CLI.Outs.empty() && CLI.Ins.empty() && isK16HaltOnceCallee(Callee))
     return DAG.getNode(K16ISD::HALT, DL, MVT::Other, Chain);
   if (CLI.Outs.empty() && CLI.Ins.empty() && isK16IretOnceCallee(Callee))
@@ -287,10 +307,10 @@ SDValue K16TargetLowering::LowerCall(
       ++FixedSlotCount;
 
   unsigned FixedStackBytes =
-      FixedSlotCount > std::size(K16ArgRegs)
-          ? (FixedSlotCount - std::size(K16ArgRegs)) * K16StackSlotBytes
+      FixedSlotCount > ArgRegs.size()
+          ? (FixedSlotCount - ArgRegs.size()) * K16StackSlotBytes
           : 0;
-  unsigned NextVarArgCalleeOffset = K16ReturnPcBytes + FixedStackBytes;
+  unsigned NextVarArgCalleeOffset = ReturnPcBytes + FixedStackBytes;
   unsigned FixedSlotIndex = 0;
   SmallVector<K16OutgoingArgLocation, 8> ArgLocations(CLI.Outs.size());
 
@@ -299,11 +319,11 @@ SDValue K16TargetLowering::LowerCall(
     if (!Out.Flags.isVarArg()) {
       if (Out.VT != MVT::i32)
         report_fatal_error("K16 only supports i32 fixed call fragments");
-      if (FixedSlotIndex < std::size(K16ArgRegs))
-        ArgLocations[I].Reg = K16ArgRegs[FixedSlotIndex];
+      if (FixedSlotIndex < ArgRegs.size())
+        ArgLocations[I].Reg = ArgRegs[FixedSlotIndex];
       else
         ArgLocations[I].StackOffset =
-            (FixedSlotIndex - std::size(K16ArgRegs)) * K16StackSlotBytes;
+            (FixedSlotIndex - ArgRegs.size()) * K16StackSlotBytes;
       ++FixedSlotIndex;
       ++I;
       continue;
@@ -331,7 +351,7 @@ SDValue K16TargetLowering::LowerCall(
 
     GroupExtent = alignTo(GroupExtent, K16StackSlotBytes);
     NextVarArgCalleeOffset = alignTo(NextVarArgCalleeOffset, Alignment);
-    unsigned GroupCallerOffset = NextVarArgCalleeOffset - K16ReturnPcBytes;
+    unsigned GroupCallerOffset = NextVarArgCalleeOffset - ReturnPcBytes;
     for (unsigned Part = I; Part != GroupEnd; ++Part)
       ArgLocations[Part].StackOffset =
           GroupCallerOffset + CLI.Outs[Part].PartOffset;
@@ -339,7 +359,7 @@ SDValue K16TargetLowering::LowerCall(
     I = GroupEnd;
   }
 
-  unsigned CallFrameBytes = NextVarArgCalleeOffset - K16ReturnPcBytes;
+  unsigned CallFrameBytes = NextVarArgCalleeOffset - ReturnPcBytes;
   for (unsigned I = 0, E = CLI.Outs.size(); I != E; ++I) {
     const ISD::ArgFlagsTy &Flags = CLI.Outs[I].Flags;
     if (!Flags.isByVal())
@@ -349,8 +369,8 @@ SDValue K16TargetLowering::LowerCall(
       report_fatal_error(
           "K16 aggregate arguments cannot require alignment above 8 bytes");
     unsigned CopyCalleeOffset =
-        alignTo(K16ReturnPcBytes + CallFrameBytes, Alignment);
-    ArgLocations[I].ByValCopyOffset = CopyCalleeOffset - K16ReturnPcBytes;
+        alignTo(ReturnPcBytes + CallFrameBytes, Alignment);
+    ArgLocations[I].ByValCopyOffset = CopyCalleeOffset - ReturnPcBytes;
     CallFrameBytes = ArgLocations[I].ByValCopyOffset +
                      alignTo(Flags.getByValSize(), K16StackSlotBytes);
   }
@@ -361,7 +381,7 @@ SDValue K16TargetLowering::LowerCall(
   SDValue StackPtr;
   auto GetStackAddress = [&](unsigned Offset) {
     if (!StackPtr.getNode())
-      StackPtr = DAG.getCopyFromReg(Chain, DL, K16::SP, MVT::i32);
+      StackPtr = DAG.getCopyFromReg(Chain, DL, StackReg, MVT::i32);
     if (Offset == 0)
       return StackPtr;
     return DAG.getNode(ISD::ADD, DL, MVT::i32, StackPtr,
@@ -435,7 +455,7 @@ SDValue K16TargetLowering::LowerCall(
     if (CLI.Ins[I].VT != MVT::i32)
       report_fatal_error("K16 only supports i32 call return values");
     SDValue Ret =
-        DAG.getCopyFromReg(Chain, DL, K16RetRegs[I], MVT::i32, InGlue);
+        DAG.getCopyFromReg(Chain, DL, RetRegs[I], MVT::i32, InGlue);
     Chain = Ret.getValue(1);
     InGlue = Chain.getValue(2);
     InVals.push_back(Ret);

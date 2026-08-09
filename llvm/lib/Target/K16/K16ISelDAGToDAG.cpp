@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "K16.h"
+#include "K16Subtarget.h"
 #include "K16TargetMachine.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
@@ -39,9 +40,16 @@ static unsigned getK16StoreOpcode(EVT MemoryVT) {
 }
 
 class K16DAGToDAGISel : public SelectionDAGISel {
+  const K16Subtarget *Subtarget = nullptr;
+
 public:
   K16DAGToDAGISel(K16TargetMachine &TM, CodeGenOptLevel OptLevel)
       : SelectionDAGISel(TM, OptLevel) {}
+
+  bool runOnMachineFunction(MachineFunction &MF) override {
+    Subtarget = &MF.getSubtarget<K16Subtarget>();
+    return SelectionDAGISel::runOnMachineFunction(MF);
+  }
 
   void Select(SDNode *Node) override;
 

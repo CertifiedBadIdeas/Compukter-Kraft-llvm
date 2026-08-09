@@ -9,6 +9,7 @@
 #include "K16RegisterInfo.h"
 #include "K16FrameLowering.h"
 #include "K16InstrInfo.h"
+#include "K16Subtarget.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -48,22 +49,37 @@ static unsigned offsetOpcode(unsigned Opcode) {
 K16RegisterInfo::K16RegisterInfo() : K16GenRegisterInfo(K16::R14) {}
 
 const MCPhysReg *
-K16RegisterInfo::getCalleeSavedRegs(const MachineFunction *) const {
+K16RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
+  if (MF && MF->getSubtarget<K16Subtarget>().hasF32R32LR())
+    return CSR_F32R32LR_Save_SaveList;
   return CSR_NoRegs_SaveList;
 }
 
 const uint32_t *
-K16RegisterInfo::getCallPreservedMask(const MachineFunction &,
+K16RegisterInfo::getCallPreservedMask(const MachineFunction &MF,
                                         CallingConv::ID) const {
+  if (MF.getSubtarget<K16Subtarget>().hasF32R32LR())
+    return CSR_F32R32LR_Preserved_RegMask;
   return CSR_CallPreserved_RegMask;
 }
 
-BitVector K16RegisterInfo::getReservedRegs(const MachineFunction &) const {
+BitVector K16RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
+  if (MF.getSubtarget<K16Subtarget>().hasF32R32LR()) {
+    Reserved.set(K16::SP32);
+    Reserved.set(K16::LR);
+    return Reserved;
+  }
   Reserved.set(K16::FP);
   Reserved.set(K16::R13);
   Reserved.set(K16::SP);
   Reserved.set(K16::R14);
+  static constexpr MCPhysReg F32R32Registers[] = {
+      K16::R16, K16::R17, K16::R18, K16::R19, K16::R20, K16::R21,
+      K16::R22, K16::R23, K16::R24, K16::R25, K16::R26, K16::R27,
+      K16::R28, K16::R29, K16::SP32, K16::LR};
+  for (MCRegister Reg : F32R32Registers)
+    Reserved.set(Reg);
   return Reserved;
 }
 
@@ -77,6 +93,8 @@ bool K16RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II, int,
   MachineInstr &MI = *II;
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
+  const bool IsF32R32LR = MF.getSubtarget<K16Subtarget>().hasF32R32LR();
+  const MCRegister StackReg = IsF32R32LR ? K16::SP32 : K16::SP;
   const MachineFrameInfo &MFI = MF.getFrameInfo();
   const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
 
@@ -86,7 +104,7 @@ bool K16RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II, int,
 
   int FrameIndex = MI.getOperand(FIOperandNum).getIndex();
   int64_t Offset = MFI.getObjectOffset(FrameIndex) + MFI.getStackSize();
-  if (MFI.hasCalls())
+  if (MFI.hasCalls() && !IsF32R32LR)
     Offset += 4;
   DebugLoc DL = MI.getDebugLoc();
 
@@ -94,14 +112,14 @@ bool K16RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II, int,
     Register DstReg = MI.getOperand(0).getReg();
     if (fitsI16(Offset)) {
       BuildMI(MBB, II, DL, TII->get(K16::ADDI), DstReg)
-          .addReg(K16::SP)
+          .addReg(StackReg)
           .addImm(Offset);
       MI.eraseFromParent();
       return true;
     }
     BuildMI(MBB, II, DL, TII->get(K16::CONST32), K16::R13).addImm(Offset);
     BuildMI(MBB, II, DL, TII->get(K16::ADD), DstReg)
-        .addReg(K16::SP)
+        .addReg(StackReg)
         .addReg(K16::R13, RegState::Kill);
     MI.eraseFromParent();
     return true;
@@ -110,19 +128,19 @@ bool K16RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II, int,
   if (unsigned OffsetOpcode = offsetOpcode(MI.getOpcode());
       OffsetOpcode != 0 && fitsI16(Offset)) {
     MI.setDesc(TII->get(OffsetOpcode));
-    MI.getOperand(FIOperandNum).ChangeToRegister(K16::SP, false);
+    MI.getOperand(FIOperandNum).ChangeToRegister(StackReg, false);
     MI.addOperand(MachineOperand::CreateImm(Offset));
     return false;
   }
 
   BuildMI(MBB, II, DL, TII->get(K16::CONST32), K16::R13).addImm(Offset);
   BuildMI(MBB, II, DL, TII->get(K16::ADD), K16::R13)
-      .addReg(K16::SP)
+      .addReg(StackReg)
       .addReg(K16::R13, RegState::Kill);
   MI.getOperand(FIOperandNum).ChangeToRegister(K16::R13, false);
   return false;
 }
 
-Register K16RegisterInfo::getFrameRegister(const MachineFunction &) const {
-  return K16::SP;
+Register K16RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
+  return MF.getSubtarget<K16Subtarget>().hasF32R32LR() ? K16::SP32 : K16::SP;
 }

@@ -8,6 +8,10 @@
 
 include "llvm/Target/Target.td"
 
+def FeatureF32R32LR : SubtargetFeature<
+  "f32r32lr", "HasF32R32LR", "true",
+  "Enable the benchmark-only 32-register link-register ABI">;
+
 def : Processor<"generic", NoItineraries, []>;
 
 include "K16RegisterInfo.td"
