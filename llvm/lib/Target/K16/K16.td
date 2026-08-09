@@ -16,7 +16,7 @@ def : Processor<"generic", NoItineraries, []>;
 
 include "K16RegisterInfo.td"
 
-defm : RemapAllTargetPseudoPointerOperands<GPR>;
+defm : RemapAllTargetPseudoPointerOperands<GPR32>;
 
 include "K16InstrInfo.td"
 

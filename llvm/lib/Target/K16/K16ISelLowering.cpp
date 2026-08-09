@@ -109,7 +109,8 @@ static bool getK16WriteCsrCallee(SDValue Callee, unsigned &Csr) {
 K16TargetLowering::K16TargetLowering(const TargetMachine &TM,
                                          const K16Subtarget &STI)
     : TargetLowering(TM, STI), Subtarget(STI) {
-  addRegisterClass(MVT::i32, &K16::GPRRegClass);
+  addRegisterClass(MVT::i32, STI.hasF32R32LR() ? &K16::GPR32RegClass
+                                               : &K16::GPRRegClass);
   computeRegisterProperties(STI.getRegisterInfo());
 
   setStackPointerRegisterToSaveRestore(STI.hasF32R32LR() ? K16::SP32
@@ -196,7 +197,9 @@ SDValue K16TargetLowering::LowerFormalArguments(
       report_fatal_error("K16 only supports i32 function arguments");
 
     if (I < ArgRegs.size()) {
-      Register VReg = RegInfo.createVirtualRegister(&K16::GPRRegClass);
+      Register VReg = RegInfo.createVirtualRegister(
+          Subtarget.hasF32R32LR() ? &K16::GPR32RegClass
+                                  : &K16::GPRRegClass);
       RegInfo.addLiveIn(ArgRegs[I], VReg);
       InVals.push_back(DAG.getCopyFromReg(Chain, DL, VReg, MVT::i32));
       continue;

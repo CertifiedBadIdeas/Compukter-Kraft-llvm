@@ -63,152 +63,152 @@ let hasSideEffects = 1, isTerminator = 1, isBarrier = 1 in
 def IRET : K16Inst<(outs), (ins), "iret", [(K16iret)]>;
 
 let hasSideEffects = 1 in
-def READ_CSR : K16Inst<(outs GPR:$dst), (ins i32imm:$csr),
+def READ_CSR : K16Inst<(outs GPR32:$dst), (ins i32imm:$csr),
                          "read_csr $dst, $csr",
-                         [(set GPR:$dst, (K16readcsr timm:$csr))]>;
+                         [(set GPR32:$dst, (K16readcsr timm:$csr))]>;
 
 let hasSideEffects = 1 in
-def WRITE_CSR : K16Inst<(outs), (ins i32imm:$csr, GPR:$src),
+def WRITE_CSR : K16Inst<(outs), (ins i32imm:$csr, GPR32:$src),
                           "write_csr $csr, $src",
-                          [(K16writecsr timm:$csr, GPR:$src)]>;
+                          [(K16writecsr timm:$csr, GPR32:$src)]>;
 
 let isReMaterializable = 1, isAsCheapAsAMove = 1, isMoveImm = 1 in
-def CONST32 : K16Inst<(outs GPR:$dst), (ins i32imm:$imm),
+def CONST32 : K16Inst<(outs GPR32:$dst), (ins i32imm:$imm),
                         "const32 $dst, $imm",
-                        [(set GPR:$dst, imm:$imm)], 6>;
+                        [(set GPR32:$dst, imm:$imm)], 6>;
 
-def ADD : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+def ADD : K16Inst<(outs GPR32:$dst), (ins GPR32:$lhs, GPR32:$rhs),
                     "add $dst, $lhs, $rhs",
-                    [(set GPR:$dst, (add GPR:$lhs, GPR:$rhs))], 4>;
+                    [(set GPR32:$dst, (add GPR32:$lhs, GPR32:$rhs))], 4>;
 
-def SUB : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+def SUB : K16Inst<(outs GPR32:$dst), (ins GPR32:$lhs, GPR32:$rhs),
                     "sub $dst, $lhs, $rhs",
-                    [(set GPR:$dst, (sub GPR:$lhs, GPR:$rhs))], 4>;
+                    [(set GPR32:$dst, (sub GPR32:$lhs, GPR32:$rhs))], 4>;
 
-def ADDI : K16Inst<(outs GPR:$dst), (ins GPR:$src, i32imm:$imm),
+def ADDI : K16Inst<(outs GPR32:$dst), (ins GPR32:$src, i32imm:$imm),
                      "addi $dst, $src, $imm",
-                     [(set GPR:$dst, (add GPR:$src, simm16:$imm))], 4>;
+                     [(set GPR32:$dst, (add GPR32:$src, simm16:$imm))], 4>;
 
-def MUL : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+def MUL : K16Inst<(outs GPR32:$dst), (ins GPR32:$lhs, GPR32:$rhs),
                     "mul $dst, $lhs, $rhs",
-                    [(set GPR:$dst, (mul GPR:$lhs, GPR:$rhs))], 4>;
+                    [(set GPR32:$dst, (mul GPR32:$lhs, GPR32:$rhs))], 4>;
 
-def MULHU : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+def MULHU : K16Inst<(outs GPR32:$dst), (ins GPR32:$lhs, GPR32:$rhs),
                       "mulh_u $dst, $lhs, $rhs",
-                      [(set GPR:$dst, (mulhu GPR:$lhs, GPR:$rhs))], 4>;
+                      [(set GPR32:$dst, (mulhu GPR32:$lhs, GPR32:$rhs))], 4>;
 
-def MULHS : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+def MULHS : K16Inst<(outs GPR32:$dst), (ins GPR32:$lhs, GPR32:$rhs),
                       "mulh_s $dst, $lhs, $rhs",
-                      [(set GPR:$dst, (mulhs GPR:$lhs, GPR:$rhs))], 4>;
+                      [(set GPR32:$dst, (mulhs GPR32:$lhs, GPR32:$rhs))], 4>;
 
-def AND : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+def AND : K16Inst<(outs GPR32:$dst), (ins GPR32:$lhs, GPR32:$rhs),
                     "and $dst, $lhs, $rhs",
-                    [(set GPR:$dst, (and GPR:$lhs, GPR:$rhs))], 4>;
+                    [(set GPR32:$dst, (and GPR32:$lhs, GPR32:$rhs))], 4>;
 
-def OR : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+def OR : K16Inst<(outs GPR32:$dst), (ins GPR32:$lhs, GPR32:$rhs),
                    "or $dst, $lhs, $rhs",
-                   [(set GPR:$dst, (or GPR:$lhs, GPR:$rhs))], 4>;
+                   [(set GPR32:$dst, (or GPR32:$lhs, GPR32:$rhs))], 4>;
 
-def XOR : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+def XOR : K16Inst<(outs GPR32:$dst), (ins GPR32:$lhs, GPR32:$rhs),
                     "xor $dst, $lhs, $rhs",
-                    [(set GPR:$dst, (xor GPR:$lhs, GPR:$rhs))], 4>;
+                    [(set GPR32:$dst, (xor GPR32:$lhs, GPR32:$rhs))], 4>;
 
-def SHL : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+def SHL : K16Inst<(outs GPR32:$dst), (ins GPR32:$lhs, GPR32:$rhs),
                     "shl $dst, $lhs, $rhs",
-                    [(set GPR:$dst, (shl GPR:$lhs, GPR:$rhs))], 4>;
-def : Pat<(shl GPR:$lhs, imm:$rhs), (SHL GPR:$lhs, (CONST32 imm:$rhs))>;
+                    [(set GPR32:$dst, (shl GPR32:$lhs, GPR32:$rhs))], 4>;
+def : Pat<(shl GPR32:$lhs, imm:$rhs), (SHL GPR32:$lhs, (CONST32 imm:$rhs))>;
 
-def SHR : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+def SHR : K16Inst<(outs GPR32:$dst), (ins GPR32:$lhs, GPR32:$rhs),
                     "shr $dst, $lhs, $rhs",
-                    [(set GPR:$dst, (srl GPR:$lhs, GPR:$rhs))], 4>;
-def : Pat<(srl GPR:$lhs, imm:$rhs), (SHR GPR:$lhs, (CONST32 imm:$rhs))>;
+                    [(set GPR32:$dst, (srl GPR32:$lhs, GPR32:$rhs))], 4>;
+def : Pat<(srl GPR32:$lhs, imm:$rhs), (SHR GPR32:$lhs, (CONST32 imm:$rhs))>;
 
-def SAR : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+def SAR : K16Inst<(outs GPR32:$dst), (ins GPR32:$lhs, GPR32:$rhs),
                     "sar $dst, $lhs, $rhs",
-                    [(set GPR:$dst, (sra GPR:$lhs, GPR:$rhs))], 4>;
-def : Pat<(sra GPR:$lhs, imm:$rhs), (SAR GPR:$lhs, (CONST32 imm:$rhs))>;
+                    [(set GPR32:$dst, (sra GPR32:$lhs, GPR32:$rhs))], 4>;
+def : Pat<(sra GPR32:$lhs, imm:$rhs), (SAR GPR32:$lhs, (CONST32 imm:$rhs))>;
 
-def EQ : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+def EQ : K16Inst<(outs GPR32:$dst), (ins GPR32:$lhs, GPR32:$rhs),
                    "eq $dst, $lhs, $rhs",
                    [], 4>;
 
-def NE : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+def NE : K16Inst<(outs GPR32:$dst), (ins GPR32:$lhs, GPR32:$rhs),
                    "ne $dst, $lhs, $rhs",
                    [], 4>;
 
-def LTU : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+def LTU : K16Inst<(outs GPR32:$dst), (ins GPR32:$lhs, GPR32:$rhs),
                     "ltu $dst, $lhs, $rhs",
                     [], 4>;
 
-def LT_S : K16Inst<(outs GPR:$dst), (ins GPR:$lhs, GPR:$rhs),
+def LT_S : K16Inst<(outs GPR32:$dst), (ins GPR32:$lhs, GPR32:$rhs),
                      "lt_s $dst, $lhs, $rhs",
                      [], 4>;
 
 let mayLoad = 1 in
-def LOAD8 : K16Inst<(outs GPR:$dst), (ins GPR:$addr),
+def LOAD8 : K16Inst<(outs GPR32:$dst), (ins GPR32:$addr),
                       "load8 $dst, [$addr]",
-                      [(set GPR:$dst, (zextloadi8 GPR:$addr))]>;
+                      [(set GPR32:$dst, (zextloadi8 GPR32:$addr))]>;
 
 let mayLoad = 1 in
-def LOAD8O : K16Inst<(outs GPR:$dst), (ins GPR:$base, i32imm:$offset),
+def LOAD8O : K16Inst<(outs GPR32:$dst), (ins GPR32:$base, i32imm:$offset),
                        "load8 $dst, [$base + $offset]",
                        [], 4>;
 
-def : Pat<(extloadi8 GPR:$addr), (LOAD8 GPR:$addr)>;
-def : Pat<(sextloadi8 GPR:$addr),
-          (SAR (SHL (LOAD8 GPR:$addr), (CONST32 24)), (CONST32 24))>;
+def : Pat<(extloadi8 GPR32:$addr), (LOAD8 GPR32:$addr)>;
+def : Pat<(sextloadi8 GPR32:$addr),
+          (SAR (SHL (LOAD8 GPR32:$addr), (CONST32 24)), (CONST32 24))>;
 
 let mayLoad = 1 in
-def LOAD16 : K16Inst<(outs GPR:$dst), (ins GPR:$addr),
+def LOAD16 : K16Inst<(outs GPR32:$dst), (ins GPR32:$addr),
                        "load16 $dst, [$addr]",
-                       [(set GPR:$dst, (zextloadi16 GPR:$addr))]>;
+                       [(set GPR32:$dst, (zextloadi16 GPR32:$addr))]>;
 
 let mayLoad = 1 in
-def LOAD16O : K16Inst<(outs GPR:$dst), (ins GPR:$base, i32imm:$offset),
+def LOAD16O : K16Inst<(outs GPR32:$dst), (ins GPR32:$base, i32imm:$offset),
                         "load16 $dst, [$base + $offset]",
                         [], 4>;
 
-def : Pat<(extloadi16 GPR:$addr), (LOAD16 GPR:$addr)>;
-def : Pat<(sextloadi16 GPR:$addr),
-          (SAR (SHL (LOAD16 GPR:$addr), (CONST32 16)), (CONST32 16))>;
+def : Pat<(extloadi16 GPR32:$addr), (LOAD16 GPR32:$addr)>;
+def : Pat<(sextloadi16 GPR32:$addr),
+          (SAR (SHL (LOAD16 GPR32:$addr), (CONST32 16)), (CONST32 16))>;
 
 let mayLoad = 1 in
-def LOAD32 : K16Inst<(outs GPR:$dst), (ins GPR:$addr),
+def LOAD32 : K16Inst<(outs GPR32:$dst), (ins GPR32:$addr),
                        "load32 $dst, [$addr]",
-                       [(set GPR:$dst, (load GPR:$addr))]>;
+                       [(set GPR32:$dst, (load GPR32:$addr))]>;
 
 let mayLoad = 1 in
-def LOAD32O : K16Inst<(outs GPR:$dst), (ins GPR:$base, i32imm:$offset),
+def LOAD32O : K16Inst<(outs GPR32:$dst), (ins GPR32:$base, i32imm:$offset),
                         "load32 $dst, [$base + $offset]",
                         [], 4>;
 
 let mayStore = 1 in
-def STORE8 : K16Inst<(outs), (ins GPR:$addr, GPR:$src),
+def STORE8 : K16Inst<(outs), (ins GPR32:$addr, GPR32:$src),
                        "store8 [$addr], $src",
-                       [(truncstorei8 GPR:$src, GPR:$addr)]>;
+                       [(truncstorei8 GPR32:$src, GPR32:$addr)]>;
 
 let mayStore = 1 in
-def STORE8O : K16Inst<(outs), (ins GPR:$base, GPR:$src, i32imm:$offset),
+def STORE8O : K16Inst<(outs), (ins GPR32:$base, GPR32:$src, i32imm:$offset),
                         "store8 [$base + $offset], $src",
                         [], 4>;
 
 let mayStore = 1 in
-def STORE16 : K16Inst<(outs), (ins GPR:$addr, GPR:$src),
+def STORE16 : K16Inst<(outs), (ins GPR32:$addr, GPR32:$src),
                         "store16 [$addr], $src",
-                        [(truncstorei16 GPR:$src, GPR:$addr)]>;
+                        [(truncstorei16 GPR32:$src, GPR32:$addr)]>;
 
 let mayStore = 1 in
-def STORE16O : K16Inst<(outs), (ins GPR:$base, GPR:$src, i32imm:$offset),
+def STORE16O : K16Inst<(outs), (ins GPR32:$base, GPR32:$src, i32imm:$offset),
                          "store16 [$base + $offset], $src",
                          [], 4>;
 
 let mayStore = 1 in
-def STORE32 : K16Inst<(outs), (ins GPR:$addr, GPR:$src),
+def STORE32 : K16Inst<(outs), (ins GPR32:$addr, GPR32:$src),
                         "store32 [$addr], $src",
-                        [(store GPR:$src, GPR:$addr)]>;
+                        [(store GPR32:$src, GPR32:$addr)]>;
 
 let mayStore = 1 in
-def STORE32O : K16Inst<(outs), (ins GPR:$base, GPR:$src, i32imm:$offset),
+def STORE32O : K16Inst<(outs), (ins GPR32:$base, GPR32:$src, i32imm:$offset),
                          "store32 [$base + $offset], $src",
                          [], 4>;
 
@@ -221,7 +221,7 @@ def ADJCALLSTACKUP : K16Pseudo<(outs), (ins i32imm:$amt1, i32imm:$amt2),
                                  [(callseq_end timm:$amt1, timm:$amt2)]>;
 }
 
-def FRAMEADDR : K16Pseudo<(outs GPR:$dst), (ins frameaddr:$base),
+def FRAMEADDR : K16Pseudo<(outs GPR32:$dst), (ins frameaddr:$base),
                             "#FRAMEADDR $dst, $base", []>;
 
 let isCall = 1, Defs = [R0, R14], Uses = [SP], Predicates = [NoF32R32LR] in
@@ -229,7 +229,7 @@ def CALL32 : K16Inst<(outs), (ins calltarget:$target, variable_ops),
                        "call32 $target", [], 8>;
 
 let isCall = 1, Defs = [R0, R14], Uses = [SP], Predicates = [NoF32R32LR] in
-def CALLR : K16Inst<(outs), (ins GPR:$target, variable_ops),
+def CALLR : K16Inst<(outs), (ins GPR32:$target, variable_ops),
                       "call $target", [], 2>;
 
 let isCall = 1, Defs = [R0, R1, LR], Uses = [SP32],
@@ -239,7 +239,7 @@ def CALL32_R32 : K16Inst<(outs), (ins calltarget:$target, variable_ops),
 
 def : Pat<(K16call tglobaladdr:$target), (CALL32 tglobaladdr:$target)>;
 def : Pat<(K16call texternalsym:$target), (CALL32 texternalsym:$target)>;
-def : Pat<(K16call GPR:$target), (CALLR GPR:$target)>;
+def : Pat<(K16call GPR32:$target), (CALLR GPR32:$target)>;
 def : Pat<(K16call tglobaladdr:$target), (CALL32_R32 tglobaladdr:$target)>;
 def : Pat<(K16call texternalsym:$target), (CALL32_R32 texternalsym:$target)>;
 
@@ -249,65 +249,65 @@ def BR : K16Inst<(outs), (ins brtarget:$target),
                    [(br bb:$target)], 8>;
 
 let isBranch = 1, isTerminator = 1, Defs = [R14] in
-def BRZ : K16Inst<(outs), (ins GPR:$cond, brtarget:$target),
+def BRZ : K16Inst<(outs), (ins GPR32:$cond, brtarget:$target),
                     "brz $cond, $target",
                     [], 10>;
 
 let isBranch = 1, isTerminator = 1, Defs = [R14] in
-def BRNZ : K16Inst<(outs), (ins GPR:$cond, brtarget:$target),
+def BRNZ : K16Inst<(outs), (ins GPR32:$cond, brtarget:$target),
                      "brnz $cond, $target",
-                     [(brcond GPR:$cond, bb:$target)], 10>;
+                     [(brcond GPR32:$cond, bb:$target)], 10>;
 
 let isBranch = 1, isTerminator = 1, Defs = [R14] in
-def BRLTU : K16Inst<(outs), (ins GPR:$lhs, GPR:$rhs, brtarget:$target),
+def BRLTU : K16Inst<(outs), (ins GPR32:$lhs, GPR32:$rhs, brtarget:$target),
                       "brltu $lhs, $rhs, $target",
-                      [(brcc SETULT, GPR:$lhs, GPR:$rhs, bb:$target)], 14>;
+                      [(brcc SETULT, GPR32:$lhs, GPR32:$rhs, bb:$target)], 14>;
 
 let isBranch = 1, isTerminator = 1, Defs = [R14] in
-def BRUGE : K16Inst<(outs), (ins GPR:$lhs, GPR:$rhs, brtarget:$target),
+def BRUGE : K16Inst<(outs), (ins GPR32:$lhs, GPR32:$rhs, brtarget:$target),
                       "bruge $lhs, $rhs, $target",
-                      [(brcc SETUGE, GPR:$lhs, GPR:$rhs, bb:$target)], 14>;
+                      [(brcc SETUGE, GPR32:$lhs, GPR32:$rhs, bb:$target)], 14>;
 
-def : Pat<(setult GPR:$lhs, GPR:$rhs), (LTU GPR:$lhs, GPR:$rhs)>;
-def : Pat<(setugt GPR:$lhs, GPR:$rhs), (LTU GPR:$rhs, GPR:$lhs)>;
-def : Pat<(setule GPR:$lhs, GPR:$rhs),
-          (XOR (LTU GPR:$rhs, GPR:$lhs), (CONST32 1))>;
-def : Pat<(setuge GPR:$lhs, GPR:$rhs),
-          (XOR (LTU GPR:$lhs, GPR:$rhs), (CONST32 1))>;
-def : Pat<(setlt GPR:$lhs, GPR:$rhs), (LT_S GPR:$lhs, GPR:$rhs)>;
-def : Pat<(setgt GPR:$lhs, GPR:$rhs), (LT_S GPR:$rhs, GPR:$lhs)>;
-def : Pat<(setle GPR:$lhs, GPR:$rhs),
-          (XOR (LT_S GPR:$rhs, GPR:$lhs), (CONST32 1))>;
-def : Pat<(setge GPR:$lhs, GPR:$rhs),
-          (XOR (LT_S GPR:$lhs, GPR:$rhs), (CONST32 1))>;
-def : Pat<(seteq GPR:$lhs, GPR:$rhs), (EQ GPR:$lhs, GPR:$rhs)>;
-def : Pat<(setne GPR:$lhs, GPR:$rhs), (NE GPR:$lhs, GPR:$rhs)>;
-def : Pat<(select GPR:$cond, GPR:$true_value, GPR:$false_value),
-          (XOR GPR:$false_value,
-               (AND (XOR GPR:$true_value, GPR:$false_value),
-                    (SUB (CONST32 0), GPR:$cond)))>;
-def : Pat<(sext_inreg GPR:$src, i8),
-          (SAR (SHL GPR:$src, (CONST32 24)), (CONST32 24))>;
-def : Pat<(sext_inreg GPR:$src, i16),
-          (SAR (SHL GPR:$src, (CONST32 16)), (CONST32 16))>;
-def : Pat<(brcc SETNE, GPR:$lhs, (i32 0), bb:$target),
-          (BRNZ GPR:$lhs, bb:$target)>;
-def : Pat<(brcc SETNE, GPR:$lhs, GPR:$rhs, bb:$target),
-          (BRNZ (SUB GPR:$lhs, GPR:$rhs), bb:$target)>;
-def : Pat<(brcc SETEQ, GPR:$lhs, GPR:$rhs, bb:$target),
-          (BRZ (SUB GPR:$lhs, GPR:$rhs), bb:$target)>;
-def : Pat<(brcc SETUGT, GPR:$lhs, GPR:$rhs, bb:$target),
-          (BRLTU GPR:$rhs, GPR:$lhs, bb:$target)>;
-def : Pat<(brcc SETULE, GPR:$lhs, GPR:$rhs, bb:$target),
-          (BRUGE GPR:$rhs, GPR:$lhs, bb:$target)>;
-def : Pat<(brcc SETLT, GPR:$lhs, GPR:$rhs, bb:$target),
-          (BRNZ (LT_S GPR:$lhs, GPR:$rhs), bb:$target)>;
-def : Pat<(brcc SETGT, GPR:$lhs, GPR:$rhs, bb:$target),
-          (BRNZ (LT_S GPR:$rhs, GPR:$lhs), bb:$target)>;
-def : Pat<(brcc SETGE, GPR:$lhs, GPR:$rhs, bb:$target),
-          (BRZ (LT_S GPR:$lhs, GPR:$rhs), bb:$target)>;
-def : Pat<(brcc SETLE, GPR:$lhs, GPR:$rhs, bb:$target),
-          (BRZ (LT_S GPR:$rhs, GPR:$lhs), bb:$target)>;
+def : Pat<(setult GPR32:$lhs, GPR32:$rhs), (LTU GPR32:$lhs, GPR32:$rhs)>;
+def : Pat<(setugt GPR32:$lhs, GPR32:$rhs), (LTU GPR32:$rhs, GPR32:$lhs)>;
+def : Pat<(setule GPR32:$lhs, GPR32:$rhs),
+          (XOR (LTU GPR32:$rhs, GPR32:$lhs), (CONST32 1))>;
+def : Pat<(setuge GPR32:$lhs, GPR32:$rhs),
+          (XOR (LTU GPR32:$lhs, GPR32:$rhs), (CONST32 1))>;
+def : Pat<(setlt GPR32:$lhs, GPR32:$rhs), (LT_S GPR32:$lhs, GPR32:$rhs)>;
+def : Pat<(setgt GPR32:$lhs, GPR32:$rhs), (LT_S GPR32:$rhs, GPR32:$lhs)>;
+def : Pat<(setle GPR32:$lhs, GPR32:$rhs),
+          (XOR (LT_S GPR32:$rhs, GPR32:$lhs), (CONST32 1))>;
+def : Pat<(setge GPR32:$lhs, GPR32:$rhs),
+          (XOR (LT_S GPR32:$lhs, GPR32:$rhs), (CONST32 1))>;
+def : Pat<(seteq GPR32:$lhs, GPR32:$rhs), (EQ GPR32:$lhs, GPR32:$rhs)>;
+def : Pat<(setne GPR32:$lhs, GPR32:$rhs), (NE GPR32:$lhs, GPR32:$rhs)>;
+def : Pat<(select GPR32:$cond, GPR32:$true_value, GPR32:$false_value),
+          (XOR GPR32:$false_value,
+               (AND (XOR GPR32:$true_value, GPR32:$false_value),
+                    (SUB (CONST32 0), GPR32:$cond)))>;
+def : Pat<(sext_inreg GPR32:$src, i8),
+          (SAR (SHL GPR32:$src, (CONST32 24)), (CONST32 24))>;
+def : Pat<(sext_inreg GPR32:$src, i16),
+          (SAR (SHL GPR32:$src, (CONST32 16)), (CONST32 16))>;
+def : Pat<(brcc SETNE, GPR32:$lhs, (i32 0), bb:$target),
+          (BRNZ GPR32:$lhs, bb:$target)>;
+def : Pat<(brcc SETNE, GPR32:$lhs, GPR32:$rhs, bb:$target),
+          (BRNZ (SUB GPR32:$lhs, GPR32:$rhs), bb:$target)>;
+def : Pat<(brcc SETEQ, GPR32:$lhs, GPR32:$rhs, bb:$target),
+          (BRZ (SUB GPR32:$lhs, GPR32:$rhs), bb:$target)>;
+def : Pat<(brcc SETUGT, GPR32:$lhs, GPR32:$rhs, bb:$target),
+          (BRLTU GPR32:$rhs, GPR32:$lhs, bb:$target)>;
+def : Pat<(brcc SETULE, GPR32:$lhs, GPR32:$rhs, bb:$target),
+          (BRUGE GPR32:$rhs, GPR32:$lhs, bb:$target)>;
+def : Pat<(brcc SETLT, GPR32:$lhs, GPR32:$rhs, bb:$target),
+          (BRNZ (LT_S GPR32:$lhs, GPR32:$rhs), bb:$target)>;
+def : Pat<(brcc SETGT, GPR32:$lhs, GPR32:$rhs, bb:$target),
+          (BRNZ (LT_S GPR32:$rhs, GPR32:$lhs), bb:$target)>;
+def : Pat<(brcc SETGE, GPR32:$lhs, GPR32:$rhs, bb:$target),
+          (BRZ (LT_S GPR32:$lhs, GPR32:$rhs), bb:$target)>;
+def : Pat<(brcc SETLE, GPR32:$lhs, GPR32:$rhs, bb:$target),
+          (BRZ (LT_S GPR32:$rhs, GPR32:$lhs), bb:$target)>;
 
 let isTerminator = 1, isReturn = 1, isBarrier = 1,
     Predicates = [NoF32R32LR] in
